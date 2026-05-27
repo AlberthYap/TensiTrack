@@ -2,8 +2,29 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FileText } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { RecordsList } from '@/components/features/records/records-list'
 
-export default function RecordsPage() {
+export default async function RecordsPage() {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    redirect('/login')
+  }
+
+  // Get all records
+  const { data: records, error } = await supabase
+    .from('blood_pressure_records')
+    .select('*')
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .order('measured_at', { ascending: false })
+
+  const recordsList = records || []
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -23,16 +44,20 @@ export default function RecordsPage() {
         </Link>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Pencatatan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-500 dark:text-gray-400">
-            Fitur ini sedang dalam pengembangan...
-          </p>
-        </CardContent>
-      </Card>
+      {error ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-red-600 dark:text-red-400">
+              Gagal memuat data: {error.message}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <RecordsList records={recordsList} />
+      )}
     </div>
   )
 }
