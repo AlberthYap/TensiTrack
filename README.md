@@ -167,7 +167,7 @@ MIT
 
 ## 👤 Author
 
-Your Name
+Alberth Yaputra
 
 ---
 
