@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getRecordsByShareToken } from '@/app/actions/share'
+
+export const dynamic = 'force-dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Activity, Lock, Eye } from 'lucide-react'
 import { RecordsList } from '@/components/features/records/records-list'

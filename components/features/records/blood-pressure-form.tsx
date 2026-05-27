@@ -18,13 +18,24 @@ export function BloodPressureForm({ record }: BloodPressureFormProps) {
   const [error, setError] = useState<string | null>(null)
   const isEdit = !!record
 
-  // Default to current date and time in local timezone
-  const now = new Date()
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-  const defaultDateTime = now.toISOString().slice(0, 16)
+  // Convert UTC string to local datetime string for the input
+  const getLocalDatetimeString = (dateStr?: string) => {
+    const date = dateStr ? new Date(dateStr) : new Date()
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+    return date.toISOString().slice(0, 16)
+  }
+
+  const defaultDateTime = getLocalDatetimeString(record?.measured_at)
 
   async function handleSubmit(formData: FormData) {
     setError(null)
+    
+    // Convert local datetime to UTC ISO string before sending to server
+    const measuredAtStr = formData.get('measured_at') as string
+    if (measuredAtStr) {
+      const localDate = new Date(measuredAtStr)
+      formData.set('measured_at', localDate.toISOString())
+    }
     
     const result = isEdit
       ? await updateBloodPressureRecord(record.id, formData)
@@ -113,7 +124,7 @@ export function BloodPressureForm({ record }: BloodPressureFormProps) {
           name="measured_at"
           type="datetime-local"
           required
-          defaultValue={record?.measured_at.slice(0, 16) || defaultDateTime}
+          defaultValue={defaultDateTime}
         />
       </div>
 
