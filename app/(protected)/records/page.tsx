@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { RecordsList } from '@/components/features/records/records-list'
+import { ShareDialog } from '@/components/features/records/share-dialog'
 
 export default async function RecordsPage() {
   const supabase = await createClient()
@@ -36,12 +37,15 @@ export default async function RecordsPage() {
             Semua data tekanan darah Anda
           </p>
         </div>
-        <Link href="/records/new">
-          <Button>
-            <FileText className="w-4 h-4 mr-2" />
-            Tambah Data
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <ShareDialog />
+          <Link href="/records/new">
+            <Button>
+              <FileText className="w-4 h-4 mr-2" />
+              Tambah Data
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {error ? (
