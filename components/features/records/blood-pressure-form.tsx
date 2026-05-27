@@ -18,8 +18,9 @@ export function BloodPressureForm({ record }: BloodPressureFormProps) {
   const [error, setError] = useState<string | null>(null)
   const isEdit = !!record
 
-  // Default to current date and time
+  // Default to current date and time in local timezone
   const now = new Date()
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
   const defaultDateTime = now.toISOString().slice(0, 16)
 
   async function handleSubmit(formData: FormData) {
