@@ -28,21 +28,22 @@ export default async function RecordsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             Riwayat Pencatatan
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
             Semua data tekanan darah Anda
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <ShareDialog />
           <Link href="/records/new">
-            <Button>
+            <Button className="whitespace-nowrap">
               <FileText className="w-4 h-4 mr-2" />
-              Tambah Data
+              <span className="hidden sm:inline">Tambah Data</span>
+              <span className="sm:hidden">Tambah</span>
             </Button>
           </Link>
         </div>
