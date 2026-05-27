@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { nanoid } from 'nanoid'
 
 export async function generateShareToken(expiresInDays?: number | null, maxViews?: number | null) {
@@ -111,7 +112,7 @@ export async function deleteShareToken(tokenId: string) {
 }
 
 export async function validateShareToken(token: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // Get token without authentication
   const { data: shareToken, error } = await supabase
@@ -154,7 +155,7 @@ export async function validateShareToken(token: string) {
 }
 
 export async function getRecordsByShareToken(token: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // Validate token first
   const { data: shareToken, error: tokenError } = await validateShareToken(token)
