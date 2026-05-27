@@ -29,12 +29,6 @@ export default function HomePage() {
             >
               Masuk
             </Link>
-            <Link
-              href="/register"
-              className="px-8 py-3 bg-white text-blue-600 border-2 border-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors dark:bg-gray-800 dark:text-blue-400 dark:border-blue-400 dark:hover:bg-gray-700"
-            >
-              Daftar Gratis
-            </Link>
           </div>
 
           {/* Features */}

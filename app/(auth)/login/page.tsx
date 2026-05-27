@@ -28,18 +28,6 @@ export default function LoginPage() {
           </p>
 
           <LoginForm />
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Belum punya akun?{' '}
-              <Link
-                href="/register"
-                className="text-blue-600 hover:text-blue-700 font-semibold dark:text-blue-400"
-              >
-                Daftar sekarang
-              </Link>
-            </p>
-          </div>
         </div>
       </div>
     </div>
