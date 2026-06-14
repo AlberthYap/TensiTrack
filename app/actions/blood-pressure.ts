@@ -166,3 +166,117 @@ export async function getBloodPressureRecords() {
 
   return data
 }
+
+export interface GetRecordsOptions {
+  page?: number
+  pageSize?: number
+  startDate?: string
+  endDate?: string
+}
+
+export interface PaginatedRecords {
+  data: Array<{
+    id: string
+    user_id: string
+    systolic: number
+    diastolic: number
+    pulse: number | null
+    category: 'low' | 'normal' | 'elevated' | 'hypertension_stage_1' | 'hypertension_stage_2'
+    notes: string | null
+    measured_at: string
+    created_at: string
+    updated_at: string
+    deleted_at: string | null
+  }>
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export async function getBloodPressureRecordsPaginated(
+  options: GetRecordsOptions = {}
+): Promise<{ data: PaginatedRecords | null; error: string | null }> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { data: null, error: 'Unauthorized' }
+  }
+
+  const page = Math.max(1, options.page ?? 1)
+  const pageSize = Math.max(1, Math.min(100, options.pageSize ?? 10))
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
+  let query = supabase
+    .from('blood_pressure_records')
+    .select('*', { count: 'exact' })
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+
+  if (options.startDate) {
+    // awal hari dalam ISO (lokal)
+    const start = new Date(options.startDate)
+    start.setHours(0, 0, 0, 0)
+    query = query.gte('measured_at', start.toISOString())
+  }
+
+  if (options.endDate) {
+    const end = new Date(options.endDate)
+    end.setHours(23, 59, 59, 999)
+    query = query.lte('measured_at', end.toISOString())
+  }
+
+  const { data, error, count } = await query
+    .order('measured_at', { ascending: false })
+    .range(from, to)
+
+  if (error) {
+    return { data: null, error: error.message }
+  }
+
+  const total = count ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  return {
+    data: {
+      data: (data || []) as PaginatedRecords['data'],
+      total,
+      page,
+      pageSize,
+      totalPages,
+    },
+    error: null,
+  }
+}
+
+export async function getBloodPressureRecordsCount(
+  options: Omit<GetRecordsOptions, 'page' | 'pageSize'> = {}
+): Promise<number> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 0
+
+  let query = supabase
+    .from('blood_pressure_records')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+
+  if (options.startDate) {
+    const start = new Date(options.startDate)
+    start.setHours(0, 0, 0, 0)
+    query = query.gte('measured_at', start.toISOString())
+  }
+
+  if (options.endDate) {
+    const end = new Date(options.endDate)
+    end.setHours(23, 59, 59, 999)
+    query = query.lte('measured_at', end.toISOString())
+  }
+
+  const { count } = await query
+  return count ?? 0
+}

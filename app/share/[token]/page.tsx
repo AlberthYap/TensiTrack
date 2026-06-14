@@ -10,12 +10,33 @@ interface SharePageProps {
   params: {
     token: string
   }
+  searchParams: {
+    page?: string
+    pageSize?: string
+    startDate?: string
+    endDate?: string
+  }
 }
 
-export default async function SharePage({ params }: SharePageProps) {
-  const { data: records, error } = await getRecordsByShareToken(params.token)
+export default async function SharePage({ params, searchParams }: SharePageProps) {
+  const page = Math.max(1, Number(searchParams.page) || 1)
+  const pageSize = Math.max(1, Math.min(100, Number(searchParams.pageSize) || 10))
+  const startDate = searchParams.startDate || ''
+  const endDate = searchParams.endDate || ''
 
-  if (error || !records) {
+  const {
+    data: records,
+    error,
+    total,
+    totalPages,
+  } = await getRecordsByShareToken(params.token, {
+    page,
+    pageSize,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  })
+
+  if (error && (!records || records.length === 0)) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4 py-16">
@@ -91,12 +112,22 @@ export default async function SharePage({ params }: SharePageProps) {
                   Riwayat Pencatatan
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">
-                  Total {records.length} pencatatan
+                  Total {total} pencatatan
                 </p>
               </div>
             </div>
 
-            <RecordsList records={records} readOnly={true} />
+            <RecordsList
+              records={records || []}
+              total={total}
+              page={page}
+              pageSize={pageSize}
+              totalPages={totalPages}
+              startDate={startDate}
+              endDate={endDate}
+              basePath={`/share/${params.token}`}
+              readOnly
+            />
           </div>
 
           {/* Footer */}

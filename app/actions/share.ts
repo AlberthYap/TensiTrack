@@ -48,6 +48,7 @@ export async function generateShareToken(expiresInDays?: number | null, maxViews
 export async function getShareTokens() {
   const supabase = await createClient()
 
+  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized', data: [] }
@@ -70,6 +71,7 @@ export async function getShareTokens() {
 export async function revokeShareToken(tokenId: string) {
   const supabase = await createClient()
 
+  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized' }
@@ -92,6 +94,7 @@ export async function revokeShareToken(tokenId: string) {
 export async function deleteShareToken(tokenId: string) {
   const supabase = await createClient()
 
+  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized' }
@@ -135,7 +138,7 @@ export async function validateShareToken(token: string) {
         .from('share_tokens')
         .update({ is_active: false })
         .eq('id', shareToken.id)
-      
+
       return { error: 'Token has expired', data: null }
     }
   }
@@ -154,27 +157,94 @@ export async function validateShareToken(token: string) {
   return { data: shareToken }
 }
 
-export async function getRecordsByShareToken(token: string) {
+export interface ShareRecordsResult {
+  error: string | null
+  data: Array<{
+    id: string
+    user_id: string
+    systolic: number
+    diastolic: number
+    pulse: number | null
+    category: 'low' | 'normal' | 'elevated' | 'hypertension_stage_1' | 'hypertension_stage_2'
+    notes: string | null
+    measured_at: string
+    created_at: string
+    updated_at: string
+    deleted_at: string | null
+  }>
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export async function getRecordsByShareToken(
+  token: string,
+  options: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}
+): Promise<ShareRecordsResult> {
   const supabase = createAdminClient()
 
   // Validate token first
   const { data: shareToken, error: tokenError } = await validateShareToken(token)
-  
+
   if (tokenError || !shareToken) {
-    return { error: tokenError || 'Invalid token', data: [] }
+    return {
+      error: tokenError || 'Invalid token',
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: options.pageSize ?? 10,
+      totalPages: 1,
+    }
   }
 
-  // Get records for the user
-  const { data: records, error } = await supabase
+  const page = Math.max(1, options.page ?? 1)
+  const pageSize = Math.max(1, Math.min(100, options.pageSize ?? 10))
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
+  let query = supabase
     .from('blood_pressure_records')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('user_id', shareToken.user_id)
     .is('deleted_at', null)
-    .order('measured_at', { ascending: false })
 
-  if (error) {
-    return { error: error.message, data: [] }
+  if (options.startDate) {
+    const start = new Date(options.startDate)
+    start.setHours(0, 0, 0, 0)
+    query = query.gte('measured_at', start.toISOString())
   }
 
-  return { data: records || [] }
+  if (options.endDate) {
+    const end = new Date(options.endDate)
+    end.setHours(23, 59, 59, 999)
+    query = query.lte('measured_at', end.toISOString())
+  }
+
+  const { data: records, error, count } = await query
+    .order('measured_at', { ascending: false })
+    .range(from, to)
+
+  if (error) {
+    return {
+      error: error.message,
+      data: [],
+      total: 0,
+      page,
+      pageSize,
+      totalPages: 1,
+    }
+  }
+
+  const total = count ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  return {
+    error: null,
+    data: (records || []) as ShareRecordsResult['data'],
+    total,
+    page,
+    pageSize,
+    totalPages,
+  }
 }
