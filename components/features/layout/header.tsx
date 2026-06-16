@@ -1,10 +1,10 @@
 'use client'
 
 import { User } from '@supabase/supabase-js'
-import { LogOut, Menu } from 'lucide-react'
+import { LogOut, Loader2, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { logout } from '@/app/actions/auth'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { MobileNav } from './mobile-nav'
 
 interface HeaderProps {
@@ -13,9 +13,12 @@ interface HeaderProps {
 
 export function Header({ user }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
-  async function handleLogout() {
-    await logout()
+  function handleLogout() {
+    startTransition(async () => {
+      await logout()
+    })
   }
 
   return (
@@ -51,12 +54,20 @@ export function Header({ user }: HeaderProps) {
                   {user.email}
                 </p>
               </div>
-              <form action={handleLogout}>
-                <Button variant="outline" size="sm" type="submit">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                disabled={isPending}
+                type="button"
+              >
+                {isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
                   <LogOut className="w-4 h-4 mr-2" />
-                  Keluar
-                </Button>
-              </form>
+                )}
+                Keluar
+              </Button>
             </div>
           </div>
         </div>

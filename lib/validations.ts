@@ -34,6 +34,22 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password harus diisi'),
 })
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Email tidak valid'),
+})
+
+export const resetPasswordSchema = z
+  .object({
+    password: z.string().min(6, 'Password minimal 6 karakter'),
+    confirmPassword: z.string().min(6, 'Konfirmasi password minimal 6 karakter'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Password dan konfirmasi tidak cocok',
+    path: ['confirmPassword'],
+  })
+
 export type BloodPressureInput = z.infer<typeof bloodPressureSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
 export type LoginInput = z.infer<typeof loginSchema>
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>

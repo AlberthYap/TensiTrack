@@ -1,8 +1,8 @@
-export type BloodPressureCategory = 
-  | 'low' 
-  | 'normal' 
-  | 'elevated' 
-  | 'hypertension_stage_1' 
+export type BloodPressureCategory =
+  | 'low'
+  | 'normal'
+  | 'elevated'
+  | 'hypertension_stage_1'
   | 'hypertension_stage_2'
 
 export interface BloodPressureRecord {
@@ -16,6 +16,7 @@ export interface BloodPressureRecord {
   measured_at: string
   created_at: string
   updated_at: string
+  deleted_at?: string | null
 }
 
 export interface BloodPressureInput {
@@ -31,4 +32,19 @@ export interface CategoryInfo {
   color: string
   bgColor: string
   description: string
+}
+
+export interface PaginatedRecords {
+  data: BloodPressureRecord[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export interface GetRecordsOptions {
+  page?: number
+  pageSize?: number
+  startDate?: string
+  endDate?: string
 }

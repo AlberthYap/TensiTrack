@@ -106,6 +106,7 @@ export async function updateBloodPressureRecord(id: string, formData: FormData) 
 
   revalidatePath('/dashboard')
   revalidatePath('/records')
+  revalidatePath('/analytics')
   redirect('/records')
 }
 
@@ -131,24 +132,8 @@ export async function deleteBloodPressureRecord(id: string) {
 
   revalidatePath('/dashboard')
   revalidatePath('/records')
+  revalidatePath('/analytics')
   return { success: true }
-}
-
-export async function getBloodPressureRecord(id: string) {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('blood_pressure_records')
-    .select('*')
-    .eq('id', id)
-    .is('deleted_at', null)
-    .single()
-
-  if (error) {
-    return null
-  }
-
-  return data
 }
 
 export async function getBloodPressureRecords() {

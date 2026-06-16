@@ -16,7 +16,7 @@ export default async function DashboardPage() {
     .is('deleted_at', null)
     .order('measured_at', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   // Get last 7 days records for chart
   const sevenDaysAgo = new Date()

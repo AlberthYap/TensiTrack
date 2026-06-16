@@ -12,12 +12,16 @@ interface RegisterPageProps {
 }
 
 export default function RegisterPage({ searchParams }: RegisterPageProps) {
-  // Token akses untuk registrasi - ganti dengan token rahasia Anda
-  // Untuk keamanan lebih baik, simpan di environment variable
-  const REGISTER_TOKEN = process.env.REGISTER_ACCESS_TOKEN || 'tensi-admin-2026'
-  
-  // Cek apakah token valid
-  const isAuthorized = searchParams.token === REGISTER_TOKEN
+  // Token akses untuk registrasi - WAJIB di-set di environment variable.
+  // Jika tidak di-set, registrasi NON-AKTIF untuk mencegah akses publik
+  // tanpa sengaja.
+  const REGISTER_TOKEN = process.env.REGISTER_ACCESS_TOKEN
+
+  // Tanpa token env, atau token tidak cocok, tolak akses.
+  const isAuthorized =
+    typeof REGISTER_TOKEN === 'string' &&
+    REGISTER_TOKEN.length > 0 &&
+    searchParams.token === REGISTER_TOKEN
 
   // Jika tidak ada token atau token salah, tampilkan halaman akses ditolak
   if (!isAuthorized) {

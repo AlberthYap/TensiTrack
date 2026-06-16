@@ -3,6 +3,11 @@
 import { BloodPressureRecord } from '@/types/blood-pressure.types'
 import { formatBloodPressure, getCategoryInfo } from '@/lib/blood-pressure'
 import { formatDate, formatTime } from '@/lib/date'
+import {
+  buildExportFilename,
+  EXCEL_COLUMN_WIDTHS,
+  EXPORT_SHEET_NAME,
+} from '@/lib/export'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -153,25 +158,12 @@ export function RecordsList({
       }
 
       const worksheet = XLSX.utils.json_to_sheet(rows)
-      worksheet['!cols'] = [
-        { wch: 5 },
-        { wch: 14 },
-        { wch: 10 },
-        { wch: 16 },
-        { wch: 16 },
-        { wch: 16 },
-        { wch: 18 },
-        { wch: 22 },
-        { wch: 40 },
-      ]
+      worksheet['!cols'] = EXCEL_COLUMN_WIDTHS
 
       const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Riwayat Tekanan Darah')
+      XLSX.utils.book_append_sheet(workbook, worksheet, EXPORT_SHEET_NAME)
 
-      const fileNameParts = ['riwayat-tekanan-darah']
-      if (startDate) fileNameParts.push(`dari-${startDate}`)
-      if (endDate) fileNameParts.push(`sampai-${endDate}`)
-      const fileName = `${fileNameParts.join('_')}.xlsx`
+      const fileName = buildExportFilename(startDate, endDate)
 
       XLSX.writeFile(workbook, fileName)
     } catch (err) {

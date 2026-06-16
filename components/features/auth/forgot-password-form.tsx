@@ -2,20 +2,24 @@
 
 import { useFormStatus } from 'react-dom'
 import { useState } from 'react'
-import { login } from '@/app/actions/auth'
+import { forgotPassword } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2 } from 'lucide-react'
 
-export function LoginForm() {
+export function ForgotPasswordForm() {
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   async function handleSubmit(formData: FormData) {
     setError(null)
-    const result = await login(formData)
+    setSuccess(null)
+    const result = await forgotPassword(formData)
     if (result?.error) {
       setError(result.error)
+    } else if (result?.success) {
+      setSuccess(result.success)
     }
   }
 
@@ -25,6 +29,13 @@ export function LoginForm() {
         <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start gap-2">
           <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3 flex items-start gap-2">
+          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
         </div>
       )}
 
@@ -38,26 +49,9 @@ export function LoginForm() {
           required
           autoComplete="email"
         />
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
-          <a
-            href="/forgot-password"
-            className="text-xs text-blue-600 hover:text-blue-500 dark:text-blue-400"
-          >
-            Lupa password?
-          </a>
-        </div>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          placeholder="••••••••"
-          required
-          autoComplete="current-password"
-        />
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Kami akan mengirim link untuk reset password ke email Anda.
+        </p>
       </div>
 
       <SubmitButton />
@@ -70,7 +64,7 @@ function SubmitButton() {
 
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? 'Memproses...' : 'Masuk'}
+      {pending ? 'Mengirim...' : 'Kirim Link Reset'}
     </Button>
   )
 }

@@ -17,6 +17,7 @@ export function ShareDialog() {
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
   const [expiresInDays, setExpiresInDays] = useState<string>('7')
   const [maxViews, setMaxViews] = useState<string>('')
+  const [lastGeneratedUrl, setLastGeneratedUrl] = useState<string | null>(null)
 
   const loadTokens = async () => {
     const { data } = await getShareTokens()
@@ -28,19 +29,29 @@ export function ShareDialog() {
     await loadTokens()
   }
 
+  const handleClose = () => {
+    setIsOpen(false)
+    setLastGeneratedUrl(null)
+  }
+
   const handleGenerate = async () => {
     setIsGenerating(true)
     const expires = expiresInDays ? parseInt(expiresInDays) : null
     const max = maxViews ? parseInt(maxViews) : null
     
     const result = await generateShareToken(expires, max)
-    
+
     if (result.error) {
       alert('Gagal membuat link: ' + result.error)
-    } else {
+      setLastGeneratedUrl(null)
+    } else if (result.token) {
+      const newUrl = `${window.location.origin}/share/${result.token}`
+      setLastGeneratedUrl(newUrl)
       await loadTokens()
       setExpiresInDays('7')
       setMaxViews('')
+    } else {
+      setLastGeneratedUrl(null)
     }
     setIsGenerating(false)
   }
@@ -84,7 +95,7 @@ export function ShareDialog() {
               <Share2 className="w-5 h-5" />
               Bagikan Data Tekanan Darah
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+            <Button variant="ghost" size="sm" onClick={handleClose}>
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -129,13 +140,43 @@ export function ShareDialog() {
               </div>
             </div>
 
-            <Button 
-              onClick={handleGenerate} 
+            <Button
+              onClick={handleGenerate}
               disabled={isGenerating}
               className="w-full"
             >
               {isGenerating ? 'Membuat...' : 'Buat Link Share'}
             </Button>
+
+            {lastGeneratedUrl && (
+              <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg space-y-2">
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  Link berhasil dibuat! Salin dan bagikan ke dokter atau keluarga:
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={lastGeneratedUrl}
+                    readOnly
+                    className="text-xs font-mono"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(lastGeneratedUrl)
+                      setCopiedToken('last')
+                      setTimeout(() => setCopiedToken(null), 2000)
+                    }}
+                  >
+                    {copiedToken === 'last' ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Active Links */}

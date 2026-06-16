@@ -2,18 +2,18 @@
 
 import { useFormStatus } from 'react-dom'
 import { useState } from 'react'
-import { login } from '@/app/actions/auth'
+import { resetPassword } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AlertCircle } from 'lucide-react'
 
-export function LoginForm() {
+export function ResetPasswordForm() {
   const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(formData: FormData) {
     setError(null)
-    const result = await login(formData)
+    const result = await resetPassword(formData)
     if (result?.error) {
       setError(result.error)
     }
@@ -29,34 +29,31 @@ export function LoginForm() {
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          placeholder="nama@email.com"
-          required
-          autoComplete="email"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
-          <a
-            href="/forgot-password"
-            className="text-xs text-blue-600 hover:text-blue-500 dark:text-blue-400"
-          >
-            Lupa password?
-          </a>
-        </div>
+        <Label htmlFor="password">Password Baru</Label>
         <Input
           id="password"
           name="password"
           type="password"
           placeholder="••••••••"
           required
-          autoComplete="current-password"
+          autoComplete="new-password"
+          minLength={6}
+        />
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Minimal 6 karakter
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Konfirmasi Password</Label>
+        <Input
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          placeholder="••••••••"
+          required
+          autoComplete="new-password"
+          minLength={6}
         />
       </div>
 
@@ -70,7 +67,7 @@ function SubmitButton() {
 
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? 'Memproses...' : 'Masuk'}
+      {pending ? 'Menyimpan...' : 'Reset Password'}
     </Button>
   )
 }
