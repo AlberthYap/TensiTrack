@@ -11,12 +11,12 @@ interface EmptyStateProps {
 }
 
 const GRADIENT_MAP = {
-  hero: 'bg-gradient-hero',
-  cool: 'bg-gradient-cool',
-  warm: 'bg-gradient-warm',
-  success: 'bg-gradient-success',
-  purple: 'bg-gradient-purple',
-  pink: 'bg-gradient-pink',
+  hero: 'bg-gray-100 dark:bg-gray-800',
+  cool: 'bg-gray-100 dark:bg-gray-800',
+  warm: 'bg-gray-100 dark:bg-gray-800',
+  success: 'bg-gray-100 dark:bg-gray-800',
+  purple: 'bg-gray-100 dark:bg-gray-800',
+  pink: 'bg-gray-100 dark:bg-gray-800',
 } as const
 
 export function EmptyState({
@@ -36,11 +36,11 @@ export function EmptyState({
     >
       <div
         className={cn(
-          'inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-glow animate-float',
+          'inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4',
           GRADIENT_MAP[gradient]
         )}
       >
-        <Icon className="w-8 h-8 text-white" />
+        <Icon className="w-8 h-8 text-gray-700 dark:text-gray-200" />
       </div>
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
         {title}

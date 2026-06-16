@@ -66,8 +66,8 @@ export default async function RecordDetailPage({ params }: RecordDetailPageProps
           </Link>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-hero shadow-glow">
-                <Activity className="w-4 h-4 text-white" />
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600">
+                <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </span>
               <span className="text-xs font-semibold tracking-wider text-blue-600 dark:text-blue-400 uppercase">
                 Detail Pencatatan
@@ -158,7 +158,7 @@ export default async function RecordDetailPage({ params }: RecordDetailPageProps
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-warm">
-                <Heart className="w-4 h-4 text-white" />
+                <Heart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </span>
               Denyut Nadi
             </CardTitle>
@@ -187,7 +187,7 @@ export default async function RecordDetailPage({ params }: RecordDetailPageProps
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-success">
-                <Activity className="w-4 h-4 text-white" />
+                <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </span>
               Tekanan Nadi
             </CardTitle>
@@ -210,7 +210,7 @@ export default async function RecordDetailPage({ params }: RecordDetailPageProps
         <Card className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-purple">
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-600">
                 <FileText className="w-4 h-4 text-white" />
               </span>
               Tekanan Arteri Rata-rata
@@ -265,7 +265,7 @@ export default async function RecordDetailPage({ params }: RecordDetailPageProps
       <Card className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-pink">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-pink-600">
               <MessageSquare className="w-4 h-4 text-white" />
             </span>
             Catatan

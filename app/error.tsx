@@ -20,7 +20,7 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
     <div className="min-h-screen bg-aurora flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
       <div className="relative max-w-lg w-full text-center animate-fade-in-up">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-danger shadow-glow mb-6 animate-float">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-red-100 dark:bg-red-950/50 mb-6">
           <AlertTriangle className="w-10 h-10 text-white" />
         </div>
 
@@ -44,7 +44,7 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
           <Button
             onClick={reset}
             size="lg"
-            className="bg-gradient-hero hover:opacity-90"
+            className="bg-blue-600 hover:bg-blue-700"
           >
             <RefreshCw className="w-4 h-4" />
             Coba Lagi

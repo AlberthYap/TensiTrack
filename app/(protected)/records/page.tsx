@@ -55,7 +55,7 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-hero shadow-glow">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600">
               <Sparkles className="w-4 h-4 text-white" />
             </span>
             <span className="text-xs font-semibold tracking-wider text-blue-600 dark:text-blue-400 uppercase">

@@ -107,8 +107,8 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
         <CardHeader className="border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-gradient-success shadow-glow">
-                <Upload className="w-4 h-4 text-white" />
+              <span className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
+                <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               </span>
               Import Data dari CSV
             </CardTitle>
@@ -154,7 +154,7 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
                   const file = e.target.files?.[0]
                   if (file) handleFile(file)
                 }}
-                className="block w-full text-sm text-gray-600 dark:text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gradient-hero file:text-white file:cursor-pointer hover:file:opacity-90"
+                className="block w-full text-sm text-gray-600 dark:text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white file:cursor-pointer file:text-white hover:file:bg-blue-700"
               />
             </div>
           </div>
@@ -266,7 +266,7 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
 
           {/* Import result */}
           {importResult && (
-            <div className="p-4 rounded-lg bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border border-blue-200 dark:border-blue-900">
+            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900">
               <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                 Import selesai
@@ -286,7 +286,7 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
               <Button
                 onClick={handleImport}
                 disabled={isImporting}
-                className="bg-gradient-hero hover:opacity-90"
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 {isImporting ? (
                   <>

@@ -62,7 +62,7 @@ export default async function AnalyticsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-purple shadow-glow">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-600">
               <Sparkles className="w-4 h-4 text-white" />
             </span>
             <span className="text-xs font-semibold tracking-wider text-purple-600 dark:text-purple-400 uppercase">
@@ -99,7 +99,7 @@ export default async function AnalyticsPage() {
               gradient="hero"
               action={
                 <Link href="/records/new">
-                  <Button className="bg-gradient-hero hover:shadow-glow">
+                  <Button className="bg-blue-600 hover:shadow-md">
                     <Activity className="w-4 h-4 mr-2" />
                     Catat Tekanan Darah
                   </Button>
@@ -120,7 +120,7 @@ export default async function AnalyticsPage() {
 
           {/* 30-Day Chart */}
           <Card className="overflow-hidden animate-fade-in-up">
-            <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
+            <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-blue-50/50 dark:bg-blue-950/20">
               <CardTitle className="flex items-center gap-2">
                 <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-cool shadow-md">
                   <LineChart className="w-4 h-4 text-white" />
@@ -142,7 +142,7 @@ export default async function AnalyticsPage() {
           <Card className="overflow-hidden animate-fade-in-up">
             <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
               <CardTitle className="flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-purple shadow-md">
+                <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-violet-600 shadow-md">
                   <PieChart className="w-4 h-4 text-white" />
                 </span>
                 <span>

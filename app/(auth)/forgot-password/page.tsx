@@ -6,7 +6,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="space-y-6">
       <div className="text-center animate-fade-in-up">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-purple shadow-glow mb-4">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-violet-600 mb-4">
           <KeyRound className="w-6 h-6 text-white" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gradient mb-2">

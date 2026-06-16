@@ -65,8 +65,8 @@ export function DeleteRecordDialog({
           >
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
-                <span className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 shadow-lg flex-shrink-0">
-                  <AlertTriangle className="w-6 h-6 text-white" />
+                <span className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-red-100 dark:bg-red-950/30 flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </span>
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -106,7 +106,7 @@ export function DeleteRecordDialog({
                   type="button"
                   onClick={handleDelete}
                   disabled={isPending}
-                  className="bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-lg"
+                  className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-lg"
                 >
                   {isPending ? (
                     <>

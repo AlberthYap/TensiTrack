@@ -27,7 +27,7 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
     return (
       <div className="space-y-6">
         <div className="text-center animate-fade-in-up">
-          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 shadow-glow mb-4">
+          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 mb-4">
             <ShieldAlert className="w-6 h-6 text-white" />
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent mb-2">
@@ -50,7 +50,7 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
             </div>
 
             <Link href="/login">
-              <Button className="w-full bg-gradient-hero hover:shadow-glow">
+              <Button className="w-full bg-blue-600 hover:shadow-md">
                 Kembali ke Login
               </Button>
             </Link>
@@ -74,7 +74,7 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
   return (
     <div className="space-y-6">
       <div className="text-center animate-fade-in-up">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-success shadow-glow mb-4">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 mb-4">
           <UserPlus className="w-6 h-6 text-white" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gradient mb-2">

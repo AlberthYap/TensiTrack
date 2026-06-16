@@ -19,22 +19,22 @@ interface StatCardProps {
 }
 
 const GRADIENT_MAP = {
-  hero: 'bg-gradient-hero',
-  cool: 'bg-gradient-cool',
-  warm: 'bg-gradient-warm',
-  success: 'bg-gradient-success',
-  purple: 'bg-gradient-purple',
-  pink: 'bg-gradient-pink',
-  warning: 'bg-gradient-warning',
+  hero: 'bg-blue-600',
+  cool: 'bg-cyan-600',
+  warm: 'bg-orange-600',
+  success: 'bg-emerald-600',
+  purple: 'bg-violet-600',
+  pink: 'bg-pink-600',
+  warning: 'bg-amber-600',
 } as const
 
 const GLOW_MAP = {
-  hero: 'shadow-glow',
-  cool: 'shadow-glow',
+  hero: '',
+  cool: '',
   warm: '',
   success: '',
-  purple: 'shadow-glow-purple',
-  pink: 'shadow-glow-purple',
+  purple: '',
+  pink: '',
   warning: '',
 } as const
 

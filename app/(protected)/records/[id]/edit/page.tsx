@@ -49,7 +49,7 @@ export default async function EditRecordPage({ params }: EditRecordPageProps) {
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-warm shadow-glow">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-950/50">
             <Sparkles className="w-4 h-4 text-white" />
           </span>
           <span className="text-xs font-semibold tracking-wider text-orange-600 dark:text-orange-400 uppercase">

@@ -17,7 +17,7 @@ export default function NewRecordPage() {
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-success shadow-glow">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
             <Sparkles className="w-4 h-4 text-white" />
           </span>
           <span className="text-xs font-semibold tracking-wider text-emerald-600 dark:text-emerald-400 uppercase">

@@ -14,7 +14,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center animate-fade-in-up">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-hero shadow-glow mb-4">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 mb-4">
           <LogIn className="w-6 h-6 text-white" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gradient mb-2">

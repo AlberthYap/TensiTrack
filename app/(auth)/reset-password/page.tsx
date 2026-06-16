@@ -27,7 +27,7 @@ export default async function ResetPasswordPage({
     return (
       <div className="space-y-6">
         <div className="text-center animate-fade-in-up">
-          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 shadow-glow mb-4">
+          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 mb-4">
             <ShieldX className="w-6 h-6 text-white" />
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent mb-2">
@@ -41,7 +41,7 @@ export default async function ResetPasswordPage({
 
         <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 dark:border-gray-700/50 p-6 sm:p-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
           <Link href="/forgot-password">
-            <Button className="w-full bg-gradient-hero hover:shadow-glow">
+            <Button className="w-full bg-blue-600 hover:shadow-md">
               Minta Link Baru
             </Button>
           </Link>
@@ -58,7 +58,7 @@ export default async function ResetPasswordPage({
   return (
     <div className="space-y-6">
       <div className="text-center animate-fade-in-up">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-warm shadow-glow mb-4">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-orange-100 dark:bg-orange-950/50 mb-4">
           <Lock className="w-6 h-6 text-white" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gradient-warm mb-2">

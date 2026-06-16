@@ -18,9 +18,9 @@ export default async function AuthLayout({
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50/50 to-purple-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       {/* Animated Background Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-gradient-to-br from-pink-300/10 to-orange-300/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '4s' }} />
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-gradient-to-br from-pink-300/10 to-orange-300/10 rounded-full blur-3xl" style={{ animationDelay: '4s' }} />
       </div>
 
       {/* Decorative Grid Pattern */}
@@ -31,8 +31,8 @@ export default async function AuthLayout({
         {/* Left: Branding (hidden on mobile) */}
         <div className="hidden lg:flex flex-col justify-center p-12 relative">
           <div className="max-w-md">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-hero shadow-glow mb-6 animate-scale-in">
-              <Activity className="w-7 h-7 text-white" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 mb-6 animate-scale-in">
+              <Activity className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
 
             <h1 className="text-4xl xl:text-5xl font-bold text-gradient mb-4 animate-fade-in-up">
@@ -45,7 +45,7 @@ export default async function AuthLayout({
             <div className="space-y-4 stagger-children">
               <div className="flex items-start gap-3 p-3 rounded-xl bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm border border-white/60 dark:border-gray-700/50">
                 <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-cool shadow-md flex-shrink-0">
-                  <Heart className="w-4 h-4 text-white" />
+                  <Heart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 </span>
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Pencatatan Mudah</h3>
@@ -64,7 +64,7 @@ export default async function AuthLayout({
               </div>
 
               <div className="flex items-start gap-3 p-3 rounded-xl bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm border border-white/60 dark:border-gray-700/50">
-                <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-purple shadow-md flex-shrink-0">
+                <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-violet-600 shadow-md flex-shrink-0">
                   <Shield className="w-4 h-4 text-white" />
                 </span>
                 <div>
@@ -82,7 +82,7 @@ export default async function AuthLayout({
             {/* Mobile logo */}
             <div className="lg:hidden flex justify-center mb-8">
               <div className="flex items-center gap-2">
-                <div className="bg-gradient-hero p-2.5 rounded-xl shadow-glow">
+                <div className="bg-blue-600 p-2.5 rounded-xl">
                   <Activity className="w-6 h-6 text-white" />
                 </div>
                 <span className="text-xl font-bold text-gradient">

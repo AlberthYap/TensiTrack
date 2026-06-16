@@ -7,7 +7,7 @@ export default function NotFound() {
     <div className="min-h-screen bg-aurora flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-grid opacity-30 pointer-events-none" />
       <div className="relative max-w-lg w-full text-center animate-fade-in-up">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-hero shadow-glow mb-6 animate-float">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-blue-600 mb-6">
           <Search className="w-10 h-10 text-white" />
         </div>
 
@@ -23,7 +23,7 @@ export default function NotFound() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button asChild size="lg" className="bg-gradient-hero hover:opacity-90">
+          <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
             <Link href="/">
               <Home className="w-4 h-4" />
               Beranda

@@ -144,7 +144,7 @@ export function RecordsList({
             }
             action={
               !isFilterActive && !readOnly ? (
-                <Button asChild className="bg-gradient-hero hover:opacity-90">
+                <Button asChild className="bg-blue-600 hover:bg-blue-700">
                   <Link href="/records/new">Catat Sekarang</Link>
                 </Button>
               ) : isFilterActive ? (
@@ -587,7 +587,7 @@ export function RecordsList({
                 onClick={() => navigate({ page: p })}
                 className={`h-9 min-w-9 ${
                   p === page
-                    ? 'bg-gradient-hero hover:opacity-90'
+                    ? 'bg-blue-600 hover:bg-blue-700'
                     : ''
                 }`}
               >

@@ -76,7 +76,7 @@ export default async function DashboardPage() {
               title="Belum ada pencatatan"
               description="Mulai catat tekanan darah pertama Anda hari ini untuk mulai memantau kesehatan."
               action={
-                <Button asChild className="bg-gradient-hero hover:opacity-90">
+                <Button asChild className="bg-blue-600 hover:bg-blue-700">
                   <Link href="/records/new">Catat Sekarang</Link>
                 </Button>
               }
@@ -96,7 +96,7 @@ export default async function DashboardPage() {
         <Card className="animate-fade-in-up">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-gradient-cool shadow-glow">
+              <span className="p-1.5 rounded-lg bg-cyan-100 dark:bg-cyan-950/50">
                 <Calendar className="w-4 h-4 text-white" />
               </span>
               Grafik 7 Hari Terakhir

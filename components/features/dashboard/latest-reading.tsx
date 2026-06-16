@@ -20,8 +20,8 @@ export function LatestReading({ record }: LatestReadingProps) {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="flex items-center gap-2 text-lg">
-              <span className="p-1.5 rounded-lg bg-gradient-hero shadow-glow">
-                <Activity className="w-4 h-4 text-white" />
+              <span className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-950">
+                <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </span>
               Pembacaan Terakhir
             </CardTitle>

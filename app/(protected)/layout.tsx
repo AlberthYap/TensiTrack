@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getUser } from '@/app/actions/auth'
 import { Sidebar } from '@/components/features/layout/sidebar'
 import { Header } from '@/components/features/layout/header'
+import { LoadingBar } from '@/components/features/layout/loading-bar'
 
 export default async function ProtectedLayout({
   children,
@@ -24,6 +26,11 @@ export default async function ProtectedLayout({
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-pink-400/10 to-orange-400/10 rounded-full blur-3xl" />
       </div>
+
+      {/* Global loading bar - shows on route change */}
+      <Suspense fallback={null}>
+        <LoadingBar />
+      </Suspense>
 
       <Header user={user} />
       <div className="flex relative">

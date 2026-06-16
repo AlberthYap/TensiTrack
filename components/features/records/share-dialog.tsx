@@ -113,8 +113,8 @@ export function ShareDialog() {
         <CardHeader className="border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-gradient-hero shadow-glow">
-                <Share2 className="w-4 h-4 text-white" />
+              <span className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-950">
+                <Share2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </span>
               Bagikan Data Tekanan Darah
             </CardTitle>
@@ -125,7 +125,7 @@ export function ShareDialog() {
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
           {/* Generate New Link */}
-          <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-900">
+          <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-900">
             <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Share2 className="w-4 h-4 text-blue-600" />
               Buat Link Baru
@@ -171,7 +171,7 @@ export function ShareDialog() {
             <Button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="w-full bg-gradient-hero hover:opacity-90"
+              className="w-full bg-blue-600 hover:bg-blue-700"
             >
               {isGenerating ? (
                 <>
@@ -187,7 +187,7 @@ export function ShareDialog() {
             </Button>
 
             {lastGeneratedUrl && (
-              <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border border-green-200 dark:border-green-900 space-y-3 animate-fade-in-up">
+              <div className="mt-4 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-green-200 dark:border-green-900 space-y-3 animate-fade-in-up">
                 <p className="text-sm font-semibold text-green-800 dark:text-green-200 flex items-center gap-1.5">
                   <Check className="w-4 h-4" />
                   Link berhasil dibuat!

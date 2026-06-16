@@ -184,7 +184,7 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
 
         {/* Live Preview */}
         {previewCategory && (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900 animate-fade-in">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 animate-fade-in">
             <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
             <span className="text-sm text-gray-600 dark:text-gray-400">Kategori:</span>
             <CategoryBadge category={previewCategory} size="sm" />
@@ -271,8 +271,8 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
           >
             <div className="p-6">
               <div className="flex items-start gap-4">
-                <span className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg flex-shrink-0">
-                  <AlertTriangle className="w-6 h-6 text-white" />
+                <span className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-950/30 flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                 </span>
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -296,7 +296,7 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
                 <Button
                   type="button"
                   onClick={handleConfirmDiscard}
-                  className="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0 shadow-lg"
+                  className="bg-orange-600 hover:bg-orange-700 text-white border-0 shadow-lg"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Buang Perubahan
@@ -317,7 +317,7 @@ function SubmitButton({ isEdit, isDirty }: { isEdit: boolean; isDirty: boolean }
     <Button
       type="submit"
       disabled={pending || !isDirty}
-      className="bg-gradient-hero hover:shadow-glow disabled:opacity-50 disabled:cursor-not-allowed"
+      className="bg-blue-600 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {pending ? (
         <>

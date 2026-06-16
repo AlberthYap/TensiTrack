@@ -69,10 +69,9 @@ const config = {
         "2xl": "calc(var(--radius) + 8px)",
       },
       boxShadow: {
-        soft: "0 2px 8px -2px rgba(0, 0, 0, 0.06), 0 4px 16px -4px rgba(0, 0, 0, 0.04)",
-        elevated: "0 4px 16px -2px rgba(0, 0, 0, 0.08), 0 8px 32px -8px rgba(0, 0, 0, 0.06)",
-        glow: "0 0 0 1px rgba(59, 130, 246, 0.1), 0 8px 32px -4px rgba(59, 130, 246, 0.2)",
-        "glow-purple": "0 0 0 1px rgba(168, 85, 247, 0.1), 0 8px 32px -4px rgba(168, 85, 247, 0.2)",
+        soft: "0 1px 2px 0 rgba(0, 0, 0, 0.04), 0 1px 3px 0 rgba(0, 0, 0, 0.06)",
+        elevated: "0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.04)",
+        glow: "0 1px 2px 0 rgba(37, 99, 235, 0.08), 0 4px 12px -2px rgba(37, 99, 235, 0.12)",
       },
       keyframes: {
         "accordion-down": {

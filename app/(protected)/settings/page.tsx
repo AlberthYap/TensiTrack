@@ -49,7 +49,7 @@ export default async function SettingsPage() {
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-cool shadow-glow">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-950/50">
             <Sparkles className="w-4 h-4 text-white" />
           </span>
           <span className="text-xs font-semibold tracking-wider text-cyan-600 dark:text-cyan-400 uppercase">
@@ -67,9 +67,9 @@ export default async function SettingsPage() {
       <div className="space-y-6 stagger-children">
         {/* Profile Card */}
         <Card className="overflow-hidden animate-fade-in-up">
-          <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
+          <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-blue-50/50 dark:bg-blue-950/20">
             <CardTitle className="flex items-center gap-2">
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-hero shadow-md">
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-600 shadow-md">
                 <User className="w-4 h-4 text-white" />
               </span>
               <span>
@@ -92,7 +92,7 @@ export default async function SettingsPage() {
         <Card className="overflow-hidden animate-fade-in-up">
           <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
             <CardTitle className="flex items-center gap-2">
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-purple shadow-md">
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-violet-600 shadow-md">
                 <Lock className="w-4 h-4 text-white" />
               </span>
               <span>
