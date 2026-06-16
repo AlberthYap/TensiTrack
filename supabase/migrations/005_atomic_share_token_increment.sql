@@ -29,10 +29,12 @@ DECLARE
   v_status TEXT;
 BEGIN
   -- Lock row untuk mencegah race condition
-  SELECT *
+  -- (qualify kolom 'token' dengan share_tokens.token supaya tidak
+  -- ambigu dengan parameter function p_token)
+  SELECT st.*
   INTO v_share_token
-  FROM public.share_tokens
-  WHERE token = p_token
+  FROM public.share_tokens st
+  WHERE st.token = p_token
   FOR UPDATE;
 
   -- Token tidak ditemukan
@@ -62,7 +64,7 @@ BEGIN
     -- Auto-deactivate
     UPDATE public.share_tokens
     SET is_active = FALSE
-    WHERE id = v_share_token.id;
+    WHERE share_tokens.id = v_share_token.id;
 
     RETURN QUERY SELECT
       v_share_token.id, v_share_token.user_id, v_share_token.token,
@@ -89,8 +91,8 @@ BEGIN
   UPDATE public.share_tokens
   SET view_count = v_share_token.view_count + 1,
       updated_at = NOW()
-  WHERE id = v_share_token.id
-  RETURNING * INTO v_share_token;
+  WHERE share_tokens.id = v_share_token.id
+  RETURNING share_tokens.* INTO v_share_token;
 
   RETURN QUERY SELECT
     v_share_token.id, v_share_token.user_id, v_share_token.token,
