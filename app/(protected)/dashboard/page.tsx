@@ -1,10 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Activity, TrendingUp, Calendar } from 'lucide-react'
+import { Calendar, Heart, Sparkles } from 'lucide-react'
 import { LatestReading } from '@/components/features/dashboard/latest-reading'
 import { QuickStats } from '@/components/features/dashboard/quick-stats'
 import { WeeklyChart } from '@/components/features/dashboard/weekly-chart'
 import { QuickAddButton } from '@/components/features/dashboard/quick-add-button'
+import { EmptyState } from '@/components/ui/empty-state'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+
+export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -44,44 +49,56 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+      <div className="animate-fade-in-up">
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles className="w-4 h-4 text-purple-500" />
+          <p className="text-xs font-semibold text-gradient uppercase tracking-wider">
+            Ringkasan Kesehatan
+          </p>
+        </div>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
           Dashboard
         </h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
-          Ringkasan tekanan darah Anda
+          Pantau tekanan darah Anda dalam 7 hari terakhir
         </p>
       </div>
 
-      {/* Latest Reading */}
+      {/* Latest Reading or Empty State */}
       {latestRecord ? (
         <LatestReading record={latestRecord} />
       ) : (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Belum ada data
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
-              Mulai catat tekanan darah Anda hari ini
-            </p>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={Heart}
+              gradient="hero"
+              title="Belum ada pencatatan"
+              description="Mulai catat tekanan darah pertama Anda hari ini untuk mulai memantau kesehatan."
+              action={
+                <Button asChild className="bg-gradient-hero hover:opacity-90">
+                  <Link href="/records/new">Catat Sekarang</Link>
+                </Button>
+              }
+            />
           </CardContent>
         </Card>
       )}
 
       {/* Quick Stats */}
-      <QuickStats 
+      <QuickStats
         weeklyAverage={weeklyAverage}
         totalRecords={weeklyRecords?.length || 0}
       />
 
       {/* Weekly Chart */}
       {weeklyRecords && weeklyRecords.length > 0 && (
-        <Card>
+        <Card className="animate-fade-in-up">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
+              <span className="p-1.5 rounded-lg bg-gradient-cool shadow-glow">
+                <Calendar className="w-4 h-4 text-white" />
+              </span>
               Grafik 7 Hari Terakhir
             </CardTitle>
           </CardHeader>

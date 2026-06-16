@@ -1,76 +1,73 @@
 import { BloodPressureRecord } from '@/types/blood-pressure.types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Activity, Clock } from 'lucide-react'
-import { getCategoryInfo, formatBloodPressure } from '@/lib/blood-pressure'
+import { CategoryBadge } from '@/components/ui/category-badge'
+import { Activity, Clock, Heart, MessageSquare } from 'lucide-react'
+import { formatBloodPressure } from '@/lib/blood-pressure'
 import { formatRelativeTime } from '@/lib/date'
-import { cn } from '@/lib/utils'
 
 interface LatestReadingProps {
   record: BloodPressureRecord
 }
 
 export function LatestReading({ record }: LatestReadingProps) {
-  const categoryInfo = getCategoryInfo(record.category)
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="w-5 h-5" />
-          Pembacaan Terakhir
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {/* Blood Pressure Reading */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-4xl font-bold text-gray-900 dark:text-white">
+    <Card className="overflow-hidden relative animate-scale-in">
+      {/* Decorative gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 via-indigo-50/40 to-purple-50/60 dark:from-blue-950/20 dark:via-indigo-950/20 dark:to-purple-950/20 pointer-events-none" />
+      <div className="absolute -top-20 -right-20 w-64 h-64 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <span className="p-1.5 rounded-lg bg-gradient-hero shadow-glow">
+                <Activity className="w-4 h-4 text-white" />
+              </span>
+              Pembacaan Terakhir
+            </CardTitle>
+            <CategoryBadge category={record.category} size="md" />
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="space-y-4">
+            {/* Big BP Reading */}
+            <div className="flex items-end gap-3 flex-wrap">
+              <p className="text-5xl md:text-6xl font-bold text-gradient tracking-tight">
                 {formatBloodPressure(record.systolic, record.diastolic)}
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <span className="text-base text-gray-500 dark:text-gray-400 mb-2">
                 mmHg
-              </p>
-            </div>
-            <Badge className={cn('text-sm px-3 py-1', categoryInfo.bgColor, categoryInfo.color)}>
-              {categoryInfo.label}
-            </Badge>
-          </div>
-
-          {/* Pulse */}
-          {record.pulse && (
-            <div className="flex items-center gap-2 text-sm">
-              <Activity className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-700 dark:text-gray-300">
-                Denyut Nadi: <strong>{record.pulse} bpm</strong>
               </span>
             </div>
-          )}
 
-          {/* Time */}
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <Clock className="w-4 h-4" />
-            {formatRelativeTime(record.measured_at)}
-          </div>
-
-          {/* Notes */}
-          {record.notes && (
-            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                {record.notes}
-              </p>
+            {/* Pulse + Time row */}
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm">
+              {record.pulse && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300">
+                  <Heart className="w-3.5 h-3.5" />
+                  <span className="font-semibold">{record.pulse}</span>
+                  <span className="text-xs opacity-80">bpm</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                <Clock className="w-3.5 h-3.5" />
+                {formatRelativeTime(record.measured_at)}
+              </div>
             </div>
-          )}
 
-          {/* Category Description */}
-          <div className={cn('p-3 rounded-lg text-sm', categoryInfo.bgColor)}>
-            <p className={categoryInfo.color}>
-              {categoryInfo.description}
-            </p>
+            {/* Notes */}
+            {record.notes && (
+              <div className="pt-3 border-t border-gray-200/60 dark:border-gray-700/60">
+                <div className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400" />
+                  <p className="italic">&ldquo;{record.notes}&rdquo;</p>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      </CardContent>
+        </CardContent>
+      </div>
     </Card>
   )
 }

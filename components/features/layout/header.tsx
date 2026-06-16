@@ -1,7 +1,7 @@
 'use client'
 
 import { User } from '@supabase/supabase-js'
-import { LogOut, Loader2, Menu } from 'lucide-react'
+import { LogOut, Loader2, Menu, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { logout } from '@/app/actions/auth'
 import { useState, useTransition } from 'react'
@@ -9,6 +9,17 @@ import { MobileNav } from './mobile-nav'
 
 interface HeaderProps {
   user: User
+}
+
+function getInitials(name?: string | null, email?: string): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase()
+    }
+    return name[0].toUpperCase()
+  }
+  return (email || 'U')[0].toUpperCase()
 }
 
 export function Header({ user }: HeaderProps) {
@@ -21,38 +32,62 @@ export function Header({ user }: HeaderProps) {
     })
   }
 
+  const fullName = user.user_metadata?.full_name as string | undefined
+  const initials = getInitials(fullName, user.email)
+
   return (
     <>
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-        <div className="px-4 md:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <header className="glass sticky top-0 z-20 border-b border-white/20 dark:border-gray-700/50">
+        <div className="px-4 md:px-6 lg:px-8 py-3.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 md:gap-4 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden"
+                className="md:hidden flex-shrink-0"
                 onClick={() => setMobileMenuOpen(true)}
+                aria-label="Buka menu"
               >
                 <Menu className="w-5 h-5" />
               </Button>
-              <div className="hidden md:block">
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Selamat datang, {user.user_metadata?.full_name || 'User'}
+
+              {/* Mobile brand */}
+              <div className="md:hidden flex items-center gap-2 min-w-0">
+                <div className="p-1.5 rounded-lg bg-gradient-hero shadow-glow flex-shrink-0">
+                  <Heart className="w-4 h-4 text-white" />
+                </div>
+                <span className="font-bold text-gray-900 dark:text-white truncate">
+                  Tensi Harian
+                </span>
+              </div>
+
+              <div className="hidden md:block min-w-0">
+                <h1 className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white truncate">
+                  Selamat datang,{' '}
+                  <span className="text-gradient">
+                    {fullName || 'Pengguna'}
+                  </span>
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Pantau kesehatan Anda hari ini
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  Pantau tekanan darah Anda hari ini
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {user.user_metadata?.full_name || 'User'}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {user.email}
-                </p>
+            <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+              <div className="hidden sm:flex items-center gap-2.5 px-2.5 py-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 border border-white/40 dark:border-gray-700/50">
+                <div className="relative w-8 h-8 rounded-full bg-gradient-hero flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                  {initials}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white dark:border-gray-800" />
+                </div>
+                <div className="hidden lg:block">
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white leading-tight">
+                    {fullName || 'Pengguna'}
+                  </p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                    {user.email}
+                  </p>
+                </div>
               </div>
               <Button
                 variant="outline"
@@ -60,20 +95,24 @@ export function Header({ user }: HeaderProps) {
                 onClick={handleLogout}
                 disabled={isPending}
                 type="button"
+                className="gap-1.5"
               >
                 {isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <LogOut className="w-4 h-4 mr-2" />
+                  <LogOut className="w-3.5 h-3.5" />
                 )}
-                Keluar
+                <span className="hidden sm:inline">Keluar</span>
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <MobileNav open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <MobileNav
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      />
     </>
   )
 }

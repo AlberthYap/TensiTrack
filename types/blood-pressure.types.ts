@@ -31,7 +31,11 @@ export interface CategoryInfo {
   label: string
   color: string
   bgColor: string
+  borderColor: string
+  textColor: string
+  descriptionColor: string
   description: string
+  recommendation?: string
 }
 
 export interface PaginatedRecords {

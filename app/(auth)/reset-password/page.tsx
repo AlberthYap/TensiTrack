@@ -1,15 +1,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Activity } from 'lucide-react'
+import { Lock, ShieldX } from 'lucide-react'
 import { ResetPasswordForm } from '@/components/features/auth/reset-password-form'
 import { createClient } from '@/lib/supabase/server'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
 interface ResetPasswordPageProps {
@@ -32,34 +25,26 @@ export default async function ResetPasswordPage({
   // If there's an error from Supabase (invalid/expired link), show error UI
   if (searchParams.error) {
     return (
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-md mx-auto">
-          <div className="flex justify-center mb-8">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="bg-blue-600 p-3 rounded-xl">
-                <Activity className="w-8 h-8 text-white" />
-              </div>
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                Tensi Harian
-              </span>
-            </Link>
-          </div>
-          <Card className="border-red-200 dark:border-red-800">
-            <CardHeader>
-              <CardTitle className="text-2xl text-center text-red-600 dark:text-red-400">
-                Link Tidak Valid
-              </CardTitle>
-              <CardDescription className="text-center">
-                {searchParams.error_description ||
-                  'Link reset password tidak valid atau sudah kadaluarsa.'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/forgot-password">
-                <Button className="w-full">Minta Link Baru</Button>
-              </Link>
-            </CardContent>
-          </Card>
+      <div className="space-y-6">
+        <div className="text-center animate-fade-in-up">
+          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 shadow-glow mb-4">
+            <ShieldX className="w-6 h-6 text-white" />
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent mb-2">
+            Link Tidak Valid
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {searchParams.error_description ||
+              'Link reset password tidak valid atau sudah kadaluarsa.'}
+          </p>
+        </div>
+
+        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 dark:border-gray-700/50 p-6 sm:p-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <Link href="/forgot-password">
+            <Button className="w-full bg-gradient-hero hover:shadow-glow">
+              Minta Link Baru
+            </Button>
+          </Link>
         </div>
       </div>
     )
@@ -71,31 +56,21 @@ export default async function ResetPasswordPage({
   }
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="max-w-md mx-auto">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="bg-blue-600 p-3 rounded-xl">
-              <Activity className="w-8 h-8 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">
-              Tensi Harian
-            </span>
-          </Link>
+    <div className="space-y-6">
+      <div className="text-center animate-fade-in-up">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-warm shadow-glow mb-4">
+          <Lock className="w-6 h-6 text-white" />
         </div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gradient-warm mb-2">
+          Reset Password
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Masukkan password baru untuk akun Anda
+        </p>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">Reset Password</CardTitle>
-            <CardDescription className="text-center">
-              Masukkan password baru untuk akun Anda.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResetPasswordForm />
-          </CardContent>
-        </Card>
+      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 dark:border-gray-700/50 p-6 sm:p-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+        <ResetPasswordForm />
       </div>
     </div>
   )

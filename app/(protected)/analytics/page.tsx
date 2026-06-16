@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart3, Calendar, PieChart, TrendingUp } from 'lucide-react'
+import { BarChart3, Calendar, Info, LineChart, PieChart, Sparkles, TrendingUp } from 'lucide-react'
 import {
   getCategoryStats,
   getMonthlyStats,
@@ -10,6 +10,11 @@ import { MonthlyStatsCard } from '@/components/features/analytics/monthly-stats'
 import { Chart30Days } from '@/components/features/analytics/30-day-chart'
 import { CategoryDistributionChart } from '@/components/features/analytics/category-distribution-chart'
 import { TrendIndicator } from '@/components/features/analytics/trend-indicator'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Activity } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,43 +55,61 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={[{ label: 'Analitik' }]} />
+
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Analitik
-        </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
-          Pantau tren dan pola tekanan darah Anda
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-purple shadow-glow">
+              <Sparkles className="w-4 h-4 text-white" />
+            </span>
+            <span className="text-xs font-semibold tracking-wider text-purple-600 dark:text-purple-400 uppercase">
+              Wawasan & Pola
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gradient">
+            Analitik Tekanan Darah
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            Pantau tren, pola, dan distribusi kategori tekanan darah Anda
+          </p>
+        </div>
       </div>
 
       {loadError ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Gagal memuat data analitik
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              Silakan coba muat ulang halaman ini.
-            </p>
+        <Card className="animate-fade-in-up">
+          <CardContent className="p-0">
+            <EmptyState
+              icon={BarChart3}
+              title="Gagal memuat data analitik"
+              description="Terjadi kesalahan saat memuat analitik Anda. Silakan coba muat ulang halaman ini."
+              gradient="warm"
+            />
           </CardContent>
         </Card>
       ) : !hasAnyData ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Belum ada data analitik
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              Mulai catat tekanan darah secara rutin untuk melihat analitik
-              lengkap di sini.
-            </p>
+        <Card className="animate-fade-in-up">
+          <CardContent className="p-0">
+            <EmptyState
+              icon={BarChart3}
+              title="Belum ada data analitik"
+              description="Mulai catat tekanan darah secara rutin untuk melihat analitik lengkap di sini."
+              gradient="hero"
+              action={
+                <Link href="/records/new">
+                  <Button className="bg-gradient-hero hover:shadow-glow">
+                    <Activity className="w-4 h-4 mr-2" />
+                    Catat Tekanan Darah
+                  </Button>
+                </Link>
+              }
+            />
           </CardContent>
         </Card>
       ) : (
-        <>
+        <div className="space-y-6 stagger-children">
           {/* Monthly Stats */}
           <MonthlyStatsCard stats={monthly} />
 
@@ -96,41 +119,55 @@ export default async function AnalyticsPage() {
           )}
 
           {/* 30-Day Chart */}
-          <Card>
-            <CardHeader>
+          <Card className="overflow-hidden animate-fade-in-up">
+            <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Grafik 30 Hari Terakhir
+                <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-cool shadow-md">
+                  <LineChart className="w-4 h-4 text-white" />
+                </span>
+                <span>
+                  Grafik 30 Hari Terakhir
+                  <span className="block text-xs font-normal text-gray-500 dark:text-gray-400 mt-0.5">
+                    Tekanan sistolik & diastolik harian
+                  </span>
+                </span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <Chart30Days data={chartData} />
             </CardContent>
           </Card>
 
           {/* Category Distribution */}
-          <Card>
-            <CardHeader>
+          <Card className="overflow-hidden animate-fade-in-up">
+            <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
               <CardTitle className="flex items-center gap-2">
-                <PieChart className="w-5 h-5" />
-                Distribusi Kategori (30 Hari)
+                <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-purple shadow-md">
+                  <PieChart className="w-4 h-4 text-white" />
+                </span>
+                <span>
+                  Distribusi Kategori (30 Hari)
+                  <span className="block text-xs font-normal text-gray-500 dark:text-gray-400 mt-0.5">
+                    Persentase kategori tekanan darah
+                  </span>
+                </span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <CategoryDistributionChart data={categoryData} days={30} />
             </CardContent>
           </Card>
 
           {/* Info footer */}
-          <div className="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400 px-1">
-            <TrendingUp className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900 text-xs text-gray-600 dark:text-gray-400">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-cool flex-shrink-0">
+              <Info className="w-3.5 h-3.5 text-white" />
+            </span>
             <p>
-              Threshold grafik: garis kuning 120 mmHg (Elevated), garis biru
-              80 mmHg (diastolik normal). Kategori dihitung mengikuti
-              pedoman AHA.
+              <strong className="text-gray-700 dark:text-gray-300">Threshold grafik:</strong> garis kuning 120 mmHg (Elevated), garis biru 80 mmHg (diastolik normal). Kategori dihitung mengikuti pedoman AHA (American Heart Association).
             </p>
           </div>
-        </>
+        </div>
       )}
     </div>
   )

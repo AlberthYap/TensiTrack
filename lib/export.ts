@@ -88,3 +88,19 @@ export const EXCEL_COLUMN_WIDTHS: Array<{ wch: number }> = [
 ]
 
 export const EXPORT_SHEET_NAME = 'Riwayat Tekanan Darah'
+
+/**
+ * Header (key) untuk worksheet Excel. Dipakai sebagai `header` option di
+ * `XLSX.utils.json_to_sheet` agar urutan kolom konsisten.
+ */
+export const EXPORT_HEADERS: Array<keyof ExportRow> = [
+  'No',
+  'Tanggal',
+  'Waktu',
+  'Sistolik (mmHg)',
+  'Diastolik (mmHg)',
+  'Tekanan Darah',
+  'Denyut Nadi (bpm)',
+  'Kategori',
+  'Catatan',
+]

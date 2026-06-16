@@ -1,12 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { FileText } from 'lucide-react'
+import { FileText, Sparkles, Upload } from 'lucide-react'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { RecordsList } from '@/components/features/records/records-list'
 import { ShareDialog } from '@/components/features/records/share-dialog'
+import { CsvImportDialog } from '@/components/features/records/csv-import-dialog'
 import { getBloodPressureRecordsPaginated } from '@/app/actions/blood-pressure'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,23 +48,38 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={[{ label: 'Pencatatan' }]} />
+
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-hero shadow-glow">
+              <Sparkles className="w-4 h-4 text-white" />
+            </span>
+            <span className="text-xs font-semibold tracking-wider text-blue-600 dark:text-blue-400 uppercase">
+              Riwayat Lengkap
+            </span>
+          </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-            Riwayat Pencatatan
+            Semua Pencatatan
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Semua data tekanan darah Anda
+            {total > 0
+              ? `${total} total pencatatan tekanan darah`
+              : 'Belum ada data tekanan darah'}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+          <CsvImportDialog />
           <ShareDialog />
           <Link href="/records/new">
-            <Button className="whitespace-nowrap">
+            <button className="whitespace-nowrap inline-flex items-center justify-center rounded-md text-sm font-medium transition-all h-10 px-4 py-2 bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0">
               <FileText className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Tambah Data</span>
               <span className="sm:hidden">Tambah</span>
-            </Button>
+            </button>
           </Link>
         </div>
       </div>

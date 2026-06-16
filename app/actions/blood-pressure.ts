@@ -265,3 +265,46 @@ export async function getBloodPressureRecordsCount(
   const { count } = await query
   return count ?? 0
 }
+
+export interface BloodPressureRecordDetail {
+  id: string
+  user_id: string
+  systolic: number
+  diastolic: number
+  pulse: number | null
+  category: 'low' | 'normal' | 'elevated' | 'hypertension_stage_1' | 'hypertension_stage_2'
+  notes: string | null
+  measured_at: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export async function getBloodPressureRecord(
+  id: string
+): Promise<{ data: BloodPressureRecordDetail | null; error: string | null }> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { data: null, error: 'Unauthorized' }
+  }
+
+  const { data, error } = await supabase
+    .from('blood_pressure_records')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error) {
+    return { data: null, error: error.message }
+  }
+
+  if (!data) {
+    return { data: null, error: 'Data tidak ditemukan' }
+  }
+
+  return { data: data as BloodPressureRecordDetail, error: null }
+}

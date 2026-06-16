@@ -2,9 +2,10 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { BloodPressureForm } from '@/components/features/records/blood-pressure-form'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { Edit, FileEdit, Sparkles } from 'lucide-react'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
+
+export const dynamic = 'force-dynamic'
 
 interface EditRecordPageProps {
   params: {
@@ -35,30 +36,53 @@ export default async function EditRecordPage({ params }: EditRecordPageProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/records">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+    <div className="space-y-6 max-w-3xl mx-auto">
+      {/* Breadcrumbs */}
+      <Breadcrumbs
+        items={[
+          { label: 'Pencatatan', href: '/records' },
+          { label: `Detail`, href: `/records/${record.id}` },
+          { label: 'Edit' },
+        ]}
+      />
+
+      {/* Page Header */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-warm shadow-glow">
+            <Sparkles className="w-4 h-4 text-white" />
+          </span>
+          <span className="text-xs font-semibold tracking-wider text-orange-600 dark:text-orange-400 uppercase">
             Edit Pencatatan
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Ubah data tekanan darah Anda
-          </p>
+          </span>
         </div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gradient-warm">
+          Edit Data Tekanan Darah
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
+          Perbarui data pencatatan tekanan darah Anda
+        </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Form Edit Data</CardTitle>
+      <Card className="overflow-hidden animate-fade-in-up">
+        <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-orange-50/50 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/20">
+          <CardTitle className="flex items-center gap-2">
+            <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-warm shadow-md">
+              <Edit className="w-4 h-4 text-white" />
+            </span>
+            <span>
+              Form Edit Data
+              <span className="block text-xs font-normal text-gray-500 dark:text-gray-400 mt-0.5">
+                Perbarui nilai tekanan darah di bawah ini
+              </span>
+            </span>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <BloodPressureForm record={record} />
+        <CardContent className="pt-6">
+          <BloodPressureForm
+            record={record}
+            redirectPath={`/records/${record.id}`}
+          />
         </CardContent>
       </Card>
     </div>
