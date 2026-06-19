@@ -571,11 +571,20 @@ export function RecordsList({
             <ChevronLeft className="w-4 h-4" />
           </Button>
 
+          {/* Label halaman ringkas (mobile only) agar pagination tidak meluber */}
+          <span
+            className="sm:hidden px-2 text-xs font-medium text-gray-600 dark:text-gray-300 tabular-nums select-none"
+            aria-label={`Halaman ${page} dari ${totalPages}`}
+          >
+            {page} / {totalPages}
+          </span>
+
+          {/* Daftar nomor halaman + ellipsis (desktop only) */}
           {getPageNumbers(page, totalPages).map((p, idx) =>
             p === 'ellipsis' ? (
               <span
                 key={`e-${idx}`}
-                className="px-2 text-gray-400 text-sm select-none"
+                className="hidden sm:inline-flex px-2 text-gray-400 text-sm select-none"
               >
                 …
               </span>
@@ -585,7 +594,7 @@ export function RecordsList({
                 variant={p === page ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => navigate({ page: p })}
-                className={`h-9 min-w-9 ${
+                className={`hidden sm:inline-flex h-9 min-w-9 ${
                   p === page
                     ? 'bg-blue-600 hover:bg-blue-700'
                     : ''

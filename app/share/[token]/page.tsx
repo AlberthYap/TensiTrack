@@ -1,10 +1,20 @@
 import { notFound } from 'next/navigation'
-import { getRecordsByShareToken } from '@/app/actions/share'
+import {
+  getRecordsByShareToken,
+  getMonthlyStatsByShareToken,
+  get30DayChartDataByShareToken,
+  getCategoryStatsByShareToken,
+  getTrendComparisonByShareToken,
+} from '@/app/actions/share'
 
 export const dynamic = 'force-dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Activity, Lock, Eye } from 'lucide-react'
 import { RecordsList } from '@/components/features/records/records-list'
+import { ShareOverviewCard } from '@/components/features/analytics/share-monthly-stats'
+import { Share30DayChart } from '@/components/features/analytics/share-30-day-chart'
+import { ShareCategoryChart } from '@/components/features/analytics/share-category-chart'
+import { ShareTrendIndicator } from '@/components/features/analytics/share-trend-indicator'
 
 interface SharePageProps {
   params: {
@@ -24,17 +34,71 @@ export default async function SharePage({ params, searchParams }: SharePageProps
   const startDate = searchParams.startDate || ''
   const endDate = searchParams.endDate || ''
 
-  const {
-    data: records,
-    error,
-    total,
-    totalPages,
-  } = await getRecordsByShareToken(params.token, {
+  // Fetch records + analytics in parallel.
+  // Semua fetch analytics di-wrap `.catch(() => null/[])` agar gagal total
+  // tidak menjatuhkan halaman — records tetap tampil.
+  const recordsPromise = getRecordsByShareToken(params.token, {
     page,
     pageSize,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
   })
+
+  const monthlyStatsPromise = getMonthlyStatsByShareToken(params.token).catch(
+    () => null
+  )
+  const chartDataPromise = get30DayChartDataByShareToken(params.token, 30).catch(
+    () => [] as Awaited<ReturnType<typeof get30DayChartDataByShareToken>>
+  )
+  const categoryDataPromise = getCategoryStatsByShareToken(params.token, 30).catch(
+    () =>
+      ({
+        total: 0,
+        items: [],
+      }) as Awaited<ReturnType<typeof getCategoryStatsByShareToken>>
+  )
+  const trendPromise = getTrendComparisonByShareToken(params.token, 30).catch(
+    () =>
+      ({
+        current: {
+          startDate: '',
+          endDate: '',
+          averageSystolic: 0,
+          averageDiastolic: 0,
+          readingCount: 0,
+        },
+        previous: {
+          startDate: '',
+          endDate: '',
+          averageSystolic: 0,
+          averageDiastolic: 0,
+          readingCount: 0,
+        },
+        systolicChange: 0,
+        diastolicChange: 0,
+        systolicTrend: 'stable' as const,
+        diastolicTrend: 'stable' as const,
+      }) as Awaited<ReturnType<typeof getTrendComparisonByShareToken>>
+  )
+
+  const [
+    {
+      data: records,
+      error,
+      total,
+      totalPages,
+    },
+    monthlyStats,
+    chartData,
+    categoryData,
+    trendComparison,
+  ] = await Promise.all([
+    recordsPromise,
+    monthlyStatsPromise,
+    chartDataPromise,
+    categoryDataPromise,
+    trendPromise,
+  ])
 
   if (error && (!records || records.length === 0)) {
     return (
@@ -103,6 +167,14 @@ export default async function SharePage({ params, searchParams }: SharePageProps
               </p>
             </CardContent>
           </Card>
+
+          {/* Analytics Section — hero + 3 chart cards */}
+          <div className="space-y-6 mb-8">
+            <ShareOverviewCard stats={monthlyStats} />
+            <Share30DayChart data={chartData} days={30} />
+            <ShareCategoryChart data={categoryData} days={30} />
+            <ShareTrendIndicator comparison={trendComparison} periodDays={30} />
+          </div>
 
           {/* Records */}
           <div className="space-y-6">
