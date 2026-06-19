@@ -1,76 +1,22 @@
 'use server'
-
+// Re-export tipe analitik dari single source of truth agar import lama
+// (`@/app/actions/analytics`) tetap kompatibel sementara migrasi berlangsung.
+export type {
+  MonthlyStats,
+  DailyPoint,
+  CategoryDistribution,
+  TrendComparison,
+} from '@/types/blood-pressure.types'
 import { createClient } from '@/lib/supabase/server'
-import { BloodPressureCategory, BloodPressureRecord } from '@/types/blood-pressure.types'
+import {
+  BloodPressureCategory,
+  BloodPressureRecord,
+  MonthlyStats,
+  DailyPoint,
+  CategoryDistribution,
+  TrendComparison,
+} from '@/types/blood-pressure.types'
 import { calculateCategory } from '@/lib/blood-pressure'
-
-/**
- * Aggregated statistics for a calendar month.
- */
-export interface MonthlyStats {
-  year: number
-  month: number // 1-12
-  monthLabel: string // "Januari 2026"
-  totalReadings: number
-  averageSystolic: number
-  averageDiastolic: number
-  averagePulse: number | null
-  highestSystolic: number
-  highestDiastolic: number
-  lowestSystolic: number
-  lowestDiastolic: number
-  categoryBreakdown: Record<BloodPressureCategory, number>
-  daysTracked: number
-}
-
-/**
- * Trend comparison between two periods.
- */
-export interface TrendComparison {
-  current: {
-    startDate: string
-    endDate: string
-    averageSystolic: number
-    averageDiastolic: number
-    readingCount: number
-  }
-  previous: {
-    startDate: string
-    endDate: string
-    averageSystolic: number
-    averageDiastolic: number
-    readingCount: number
-  }
-  systolicChange: number // delta current - previous
-  diastolicChange: number
-  systolicTrend: 'up' | 'down' | 'stable'
-  diastolicTrend: 'up' | 'down' | 'stable'
-}
-
-/**
- * Data point for the 30-day chart.
- * If there is no reading on a day, all values are null.
- */
-export interface DailyPoint {
-  date: string // ISO yyyy-MM-dd
-  label: string // "16 Jun"
-  systolic: number | null
-  diastolic: number | null
-  pulse: number | null
-  count: number
-}
-
-/**
- * Distribution of categories within a period.
- */
-export interface CategoryDistribution {
-  total: number
-  items: Array<{
-    category: BloodPressureCategory
-    count: number
-    percentage: number
-  }>
-}
 
 /**
  * Get monthly aggregate statistics for a specific month.

@@ -1,12 +1,12 @@
-'use client'
-
-import { CategoryDistribution } from '@/app/actions/analytics'
+import { CategoryDistribution, BloodPressureCategory } from '@/types/blood-pressure.types'
 import { CATEGORY_LABELS } from '@/lib/blood-pressure'
-import { BloodPressureCategory } from '@/types/blood-pressure.types'
+import { Eye, PieChart } from 'lucide-react'
 
 interface CategoryDistributionChartProps {
   data: CategoryDistribution
   days: number
+  /** Skin kartu. Default: polos. Glass: chrome share-page. */
+  variant?: 'default' | 'glass'
 }
 
 /**
@@ -21,10 +21,7 @@ const CATEGORY_COLORS: Record<BloodPressureCategory, string> = {
   hypertension_stage_2: '#ef4444',
 }
 
-export function CategoryDistributionChart({
-  data,
-  days,
-}: CategoryDistributionChartProps) {
+function DistributionBody({ data, days }: { data: CategoryDistribution; days: number }) {
   if (data.total === 0) {
     return (
       <div className="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
@@ -33,13 +30,11 @@ export function CategoryDistributionChart({
     )
   }
 
-  // Filter hanya kategori yang muncul (count > 0) untuk pie chart
   const presentItems = data.items.filter((item) => item.count > 0)
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 gap-4">
-        {/* Custom horizontal-bar distribution */}
         <div className="flex-1 space-y-3">
           {presentItems.map((item) => (
             <div key={item.category} className="space-y-1">
@@ -77,4 +72,39 @@ export function CategoryDistributionChart({
       </p>
     </div>
   )
+}
+
+export function CategoryDistributionChart({
+  data,
+  days,
+  variant = 'default',
+}: CategoryDistributionChartProps) {
+  if (variant === 'glass') {
+    return (
+      <section className="rounded-3xl border border-white/40 dark:border-white/10 bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-lg shadow-blue-900/5 overflow-hidden">
+        <header className="flex items-start justify-between gap-3 p-5 sm:p-6 border-b border-white/40 dark:border-white/5">
+          <div>
+            <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.18em] uppercase text-violet-600 dark:text-violet-400">
+              <Eye className="w-3 h-3" />
+              Dilihat via link berbagi
+            </p>
+            <h3 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+              Distribusi Kategori ({days} Hari)
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Persentase kategori tekanan darah
+            </p>
+          </div>
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 shadow-md">
+            <PieChart className="w-4 h-4 text-white" />
+          </span>
+        </header>
+        <div className="p-5 sm:p-6">
+          <DistributionBody data={data} days={days} />
+        </div>
+      </section>
+    )
+  }
+
+  return <DistributionBody data={data} days={days} />
 }

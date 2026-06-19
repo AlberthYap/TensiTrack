@@ -5,7 +5,15 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { nanoid } from 'nanoid'
 import { applyDateRange } from '@/lib/supabase/queries'
-import { BloodPressureRecord, BloodPressureCategory, PaginatedRecords } from '@/types/blood-pressure.types'
+import {
+  BloodPressureRecord,
+  BloodPressureCategory,
+  PaginatedRecords,
+  MonthlyStats,
+  DailyPoint,
+  CategoryDistribution,
+  TrendComparison,
+} from '@/types/blood-pressure.types'
 import { calculateCategory } from '@/lib/blood-pressure'
 
 export async function generateShareToken(expiresInDays?: number | null, maxViews?: number | null) {
@@ -302,34 +310,17 @@ export async function getRecordsByShareToken(
 /**
  * Agregat bulanan untuk pemilik data share token (read-only).
  *
- * Mirrors `getMonthlyStats` di `app/actions/analytics.ts` tapi:
- * - Tidak membutuhkan Supabase auth; identitas user berasal dari token share
- *   yang sudah divalidasi secara atomic via `validateShareToken` (RPC).
- * - Return `null` bila bulan tersebut tidak memiliki catatan, atau bila token
- *   invalid/expired/max-views-reached, atau bila query gagal — sehingga
- *   halaman share tidak pernah crash karena analitik.
+ * Tidak membutuhkan Supabase auth; identitas user berasal dari share token
+ * yang sudah divalidasi secara atomic via `validateShareToken` (RPC).
+ * Return `null` bila bulan tersebut tidak memiliki catatan, atau bila token
+ * invalid/expired/max-views-reached, atau bila query gagal — sehingga
+ * halaman share tidak pernah crash karena analitik.
  */
-export interface ShareMonthlyStats {
-  year: number
-  month: number // 1-12
-  monthLabel: string // e.g. "Juni 2026"
-  totalReadings: number
-  averageSystolic: number
-  averageDiastolic: number
-  averagePulse: number | null
-  highestSystolic: number
-  highestDiastolic: number
-  lowestSystolic: number
-  lowestDiastolic: number
-  categoryBreakdown: Record<BloodPressureCategory, number>
-  daysTracked: number
-}
-
 export async function getMonthlyStatsByShareToken(
   token: string,
   year?: number,
   month?: number
-): Promise<ShareMonthlyStats | null> {
+): Promise<MonthlyStats | null> {
   try {
     const supabase = createAdminClient()
 
@@ -453,23 +444,8 @@ async function resolveShareUserId(
 }
 
 /**
- * Tipe hasil untuk grafik 30 hari pada share page.
- * Disalin dari `DailyPoint` di `app/actions/analytics.ts` agar shape
- * identik dengan komponen [`Chart30Days`](components/features/analytics/30-day-chart.tsx:62).
- */
-export interface ShareDailyPoint {
-  date: string
-  label: string
-  systolic: number | null
-  diastolic: number | null
-  pulse: number | null
-  count: number
-}
-
-/**
  * Agregat harian untuk share page (default: 30 hari).
- * Mirror dari [`get30DayChartData`](app/actions/analytics.ts:344) tapi
- * identitas user bersumber dari share token.
+ * Identitas user bersumber dari share token (read-only).
  *
  * Fail-soft: kembalikan `[]` bila token invalid, query error, atau tidak
  * ada catatan — sehingga halaman share tidak pernah crash.
@@ -477,7 +453,7 @@ export interface ShareDailyPoint {
 export async function get30DayChartDataByShareToken(
   token: string,
   days: number = 30
-): Promise<ShareDailyPoint[]> {
+): Promise<DailyPoint[]> {
   try {
     const resolved = await resolveShareUserId(token)
     if (!resolved) return []
@@ -534,7 +510,7 @@ export async function get30DayChartDataByShareToken(
       buckets.set(key, existing)
     }
 
-    const result: ShareDailyPoint[] = []
+    const result: DailyPoint[] = []
     const cursor = new Date(startDate)
     for (let i = 0; i < days; i++) {
       const key = localDateKey(cursor)
@@ -563,29 +539,15 @@ export async function get30DayChartDataByShareToken(
 }
 
 /**
- * Tipe distribusi kategori untuk share page.
- * Shape identik dengan [`CategoryDistribution`](app/actions/analytics.ts:66)
- * sehingga komponen [`CategoryDistributionChart`](components/features/analytics/category-distribution-chart.tsx:24) bisa dipakai ulang.
- */
-export interface ShareCategoryDistribution {
-  total: number
-  items: Array<{
-    category: BloodPressureCategory
-    count: number
-    percentage: number
-  }>
-}
-
-/**
  * Distribusi kategori untuk share page (default: 30 hari).
- * Mirror dari [`getCategoryStats`](app/actions/analytics.ts:189).
+ * Identitas user bersumber dari share token (read-only).
  *
  * Fail-soft: kembalikan `{ total: 0, items: [] }` saat token invalid / error.
  */
 export async function getCategoryStatsByShareToken(
   token: string,
   days: number = 30
-): Promise<ShareCategoryDistribution> {
+): Promise<CategoryDistribution> {
   try {
     const resolved = await resolveShareUserId(token)
     if (!resolved) return { total: 0, items: [] }
@@ -645,41 +607,15 @@ export async function getCategoryStatsByShareToken(
 }
 
 /**
- * Tipe perbandingan tren untuk share page.
- * Shape identik dengan [`TrendComparison`](app/actions/analytics.ts:29)
- * sehingga komponen [`TrendIndicator`](components/features/analytics/trend-indicator.tsx:18) bisa dipakai ulang.
- */
-export interface ShareTrendComparison {
-  current: {
-    startDate: string
-    endDate: string
-    averageSystolic: number
-    averageDiastolic: number
-    readingCount: number
-  }
-  previous: {
-    startDate: string
-    endDate: string
-    averageSystolic: number
-    averageDiastolic: number
-    readingCount: number
-  }
-  systolicChange: number
-  diastolicChange: number
-  systolicTrend: 'up' | 'down' | 'stable'
-  diastolicTrend: 'up' | 'down' | 'stable'
-}
-
-/**
  * Perbandingan dua periode (default: 30 hari vs 30 hari sebelumnya)
- * untuk share page. Mirror dari [`getTrendComparison`](app/actions/analytics.ts:253).
+ * untuk share page. Identitas user bersumber dari share token (read-only).
  *
  * Fail-soft: kembalikan struktur nol saat token invalid / error.
  */
 export async function getTrendComparisonByShareToken(
   token: string,
   periodDays: number = 30
-): Promise<ShareTrendComparison> {
+): Promise<TrendComparison> {
   try {
     const resolved = await resolveShareUserId(token)
     if (!resolved) return emptyTrendComparison(periodDays)
@@ -758,7 +694,7 @@ export async function getTrendComparisonByShareToken(
   }
 }
 
-function emptyTrendComparison(periodDays: number): ShareTrendComparison {
+function emptyTrendComparison(periodDays: number): TrendComparison {
   return {
     current: {
       startDate: '',

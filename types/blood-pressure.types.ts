@@ -52,3 +52,77 @@ export interface GetRecordsOptions {
   startDate?: string
   endDate?: string
 }
+
+/**
+ * Agregat statistik untuk satu bulan kalender.
+ * Dipakai oleh halaman Analytics (auth) dan Share (read-only via token).
+ */
+export interface MonthlyStats {
+  year: number
+  /** 1-12 */
+  month: number
+  /** e.g. "Juni 2026" */
+  monthLabel: string
+  totalReadings: number
+  averageSystolic: number
+  averageDiastolic: number
+  averagePulse: number | null
+  highestSystolic: number
+  highestDiastolic: number
+  lowestSystolic: number
+  lowestDiastolic: number
+  categoryBreakdown: Record<BloodPressureCategory, number>
+  daysTracked: number
+}
+
+/**
+ * Satu titik data untuk grafik harian.
+ * Jika tidak ada pencatatan di tanggal tersebut, semua nilai numerik null.
+ */
+export interface DailyPoint {
+  /** ISO yyyy-MM-dd */
+  date: string
+  /** e.g. "16 Jun" */
+  label: string
+  systolic: number | null
+  diastolic: number | null
+  pulse: number | null
+  count: number
+}
+
+/**
+ * Distribusi kategori dalam satu periode waktu.
+ */
+export interface CategoryDistribution {
+  total: number
+  items: Array<{
+    category: BloodPressureCategory
+    count: number
+    percentage: number
+  }>
+}
+
+/**
+ * Perbandingan tren antara dua periode (mis. 30 hari terakhir vs 30 hari sebelumnya).
+ */
+export interface TrendComparison {
+  current: {
+    startDate: string
+    endDate: string
+    averageSystolic: number
+    averageDiastolic: number
+    readingCount: number
+  }
+  previous: {
+    startDate: string
+    endDate: string
+    averageSystolic: number
+    averageDiastolic: number
+    readingCount: number
+  }
+  /** delta current - previous */
+  systolicChange: number
+  diastolicChange: number
+  systolicTrend: 'up' | 'down' | 'stable'
+  diastolicTrend: 'up' | 'down' | 'stable'
+}

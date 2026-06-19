@@ -12,9 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Activity, Lock, Eye } from 'lucide-react'
 import { RecordsList } from '@/components/features/records/records-list'
 import { ShareOverviewCard } from '@/components/features/analytics/share-monthly-stats'
-import { Share30DayChart } from '@/components/features/analytics/share-30-day-chart'
-import { ShareCategoryChart } from '@/components/features/analytics/share-category-chart'
-import { ShareTrendIndicator } from '@/components/features/analytics/share-trend-indicator'
+import { Chart30Days } from '@/components/features/analytics/30-day-chart'
+import { CategoryDistributionChart } from '@/components/features/analytics/category-distribution-chart'
+import { TrendIndicator } from '@/components/features/analytics/trend-indicator'
 
 interface SharePageProps {
   params: {
@@ -171,9 +171,9 @@ export default async function SharePage({ params, searchParams }: SharePageProps
           {/* Analytics Section — hero + 3 chart cards */}
           <div className="space-y-6 mb-8">
             <ShareOverviewCard stats={monthlyStats} />
-            <Share30DayChart data={chartData} days={30} />
-            <ShareCategoryChart data={categoryData} days={30} />
-            <ShareTrendIndicator comparison={trendComparison} periodDays={30} />
+            <Chart30Days data={chartData} variant="glass" />
+            <CategoryDistributionChart data={categoryData} days={30} variant="glass" />
+            <TrendIndicator comparison={trendComparison} periodDays={30} variant="glass" />
           </div>
 
           {/* Records */}

@@ -1,4 +1,4 @@
-import { TrendComparison } from '@/app/actions/analytics'
+import { TrendComparison } from '@/types/blood-pressure.types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   TrendingUp,
@@ -6,6 +6,7 @@ import {
   Minus,
   GitCompare,
   Calendar,
+  Eye,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { id } from 'date-fns/locale'
@@ -13,16 +14,91 @@ import { id } from 'date-fns/locale'
 interface TrendIndicatorProps {
   comparison: TrendComparison
   periodDays: number
+  /** Skin kartu. Default: kartu Analytics standar. Glass: chrome share-page. */
+  variant?: 'default' | 'glass'
+}
+
+function TrendBody({
+  comparison,
+  periodDays,
+}: {
+  comparison: TrendComparison
+  periodDays: number
+}) {
+  const { current, previous, systolicChange, diastolicChange } = comparison
+  const hasCurrent = current.readingCount > 0
+  const hasPrevious = previous.readingCount > 0
+
+  return (
+    <div className="space-y-4">
+      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+        <Calendar className="w-3 h-3" />
+        {formatPeriod(current.startDate, current.endDate)} vs{' '}
+        {formatPeriod(previous.startDate, previous.endDate)}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <TrendCard
+          label="Sistolik"
+          change={systolicChange}
+          current={current.averageSystolic}
+          previous={previous.averageSystolic}
+          color="red"
+        />
+        <TrendCard
+          label="Diastolik"
+          change={diastolicChange}
+          current={current.averageDiastolic}
+          previous={previous.averageDiastolic}
+          color="blue"
+        />
+      </div>
+
+      {!hasCurrent && !hasPrevious && (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Belum ada data untuk dibandingkan.
+        </p>
+      )}
+      {!hasPrevious && hasCurrent && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+          Tidak ada data pada periode sebelumnya untuk dibandingkan.
+        </p>
+      )}
+    </div>
+  )
 }
 
 export function TrendIndicator({
   comparison,
   periodDays,
+  variant = 'default',
 }: TrendIndicatorProps) {
-  const { current, previous, systolicChange, diastolicChange } = comparison
-
-  const hasCurrent = current.readingCount > 0
-  const hasPrevious = previous.readingCount > 0
+  if (variant === 'glass') {
+    return (
+      <section className="rounded-3xl border border-white/40 dark:border-white/10 bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl shadow-lg shadow-blue-900/5 overflow-hidden">
+        <header className="flex items-start justify-between gap-3 p-5 sm:p-6 border-b border-white/40 dark:border-white/5">
+          <div>
+            <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.18em] uppercase text-violet-600 dark:text-violet-400">
+              <Eye className="w-3 h-3" />
+              Dilihat via link berbagi
+            </p>
+            <h3 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+              Tren {periodDays} Hari
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Perbandingan dengan {periodDays} hari sebelumnya
+            </p>
+          </div>
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-md">
+            <GitCompare className="w-4 h-4 text-white" />
+          </span>
+        </header>
+        <div className="p-5 sm:p-6">
+          <TrendBody comparison={comparison} periodDays={periodDays} />
+        </div>
+      </section>
+    )
+  }
 
   return (
     <Card>
@@ -32,40 +108,8 @@ export function TrendIndicator({
           Tren {periodDays} Hari
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-          <Calendar className="w-3 h-3" />
-          {formatPeriod(current.startDate, current.endDate)} vs{' '}
-          {formatPeriod(previous.startDate, previous.endDate)}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <TrendCard
-            label="Sistolik"
-            change={systolicChange}
-            current={current.averageSystolic}
-            previous={previous.averageSystolic}
-            color="red"
-          />
-          <TrendCard
-            label="Diastolik"
-            change={diastolicChange}
-            current={current.averageDiastolic}
-            previous={previous.averageDiastolic}
-            color="blue"
-          />
-        </div>
-
-        {!hasCurrent && !hasPrevious && (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Belum ada data untuk dibandingkan.
-          </p>
-        )}
-        {!hasPrevious && hasCurrent && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-            Tidak ada data pada periode sebelumnya untuk dibandingkan.
-          </p>
-        )}
+      <CardContent>
+        <TrendBody comparison={comparison} periodDays={periodDays} />
       </CardContent>
     </Card>
   )

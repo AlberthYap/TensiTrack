@@ -1,4 +1,4 @@
-import type { ShareMonthlyStats } from '@/app/actions/share'
+import type { MonthlyStats } from '@/types/blood-pressure.types'
 import { CATEGORY_LABELS, formatBloodPressure } from '@/lib/blood-pressure'
 import {
   Activity,
@@ -11,7 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface ShareOverviewCardProps {
-  stats: ShareMonthlyStats | null
+  stats: MonthlyStats | null
 }
 
 /**
@@ -162,7 +162,7 @@ function StatTile({ icon, label, value, suffix }: StatTileProps) {
  * Fallback ke 'normal' bila objek breakdown kosong.
  */
 function dominantCategory(
-  breakdown: ShareMonthlyStats['categoryBreakdown']
+  breakdown: MonthlyStats['categoryBreakdown']
 ): keyof typeof CATEGORY_LABELS {
   const entries = Object.entries(breakdown) as Array<
     [keyof typeof CATEGORY_LABELS, number]
