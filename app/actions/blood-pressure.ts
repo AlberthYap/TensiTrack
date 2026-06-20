@@ -139,9 +139,16 @@ export async function deleteBloodPressureRecord(id: string) {
 export async function getBloodPressureRecords() {
   const supabase = await createClient()
 
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return []
+  }
+
   const { data, error } = await supabase
     .from('blood_pressure_records')
     .select('*')
+    .eq('user_id', user.id)
     .is('deleted_at', null)
     .order('measured_at', { ascending: false })
 

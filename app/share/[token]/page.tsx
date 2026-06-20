@@ -1,10 +1,10 @@
-import { notFound } from 'next/navigation'
 import {
-  getRecordsByShareToken,
-  getMonthlyStatsByShareToken,
-  get30DayChartDataByShareToken,
-  getCategoryStatsByShareToken,
-  getTrendComparisonByShareToken,
+  validateShareToken,
+  getRecordsByUserId,
+  getMonthlyStatsByUserId,
+  get30DayChartDataByUserId,
+  getCategoryStatsByUserId,
+  getTrendComparisonByUserId,
 } from '@/app/actions/share'
 
 export const dynamic = 'force-dynamic'
@@ -34,30 +34,79 @@ export default async function SharePage({ params, searchParams }: SharePageProps
   const startDate = searchParams.startDate || ''
   const endDate = searchParams.endDate || ''
 
-  // Fetch records + analytics in parallel.
+  // Validate token SEKALI per request (atomic via RPC, increments view_count).
+  // Setelah ini, semua pengambilan data memakai `userId` yang sudah
+  // ter-resolve lewat fungsi `*ByUserId` — sehingga view_count tidak
+  // di-increment berulang kali (sebelumnya +5 per load).
+  const { data: shareToken, error: tokenError } = await validateShareToken(
+    params.token
+  )
+
+  if (tokenError || !shareToken) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-2xl mx-auto">
+            {/* Logo */}
+            <div className="flex justify-center mb-8">
+              <div className="bg-blue-600 p-4 rounded-2xl">
+                <Activity className="w-12 h-12 text-white" />
+              </div>
+            </div>
+
+            <Card className="border-red-200 dark:border-red-800">
+              <CardHeader>
+                <div className="flex items-center justify-center mb-4">
+                  <div className="bg-red-100 dark:bg-red-950 p-4 rounded-full">
+                    <Lock className="w-8 h-8 text-red-600 dark:text-red-400" />
+                  </div>
+                </div>
+                <CardTitle className="text-center text-red-600 dark:text-red-400">
+                  Link Tidak Valid
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center space-y-4">
+                <p className="text-gray-600 dark:text-gray-400">
+                  {tokenError ||
+                    'Link share ini tidak valid, sudah kadaluarsa, atau telah mencapai batas maksimal views.'}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-500">
+                  Silakan hubungi pemilik data untuk mendapatkan link baru.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const userId = shareToken.user_id
+
+  // Fetch records + analytics in parallel menggunakan userId yang sudah
+  // ter-resolve. TIDAK ada validasi token lagi di sini, sehingga view_count
+  // hanya bertambah 1 (dari validateShareToken di atas).
   // Semua fetch analytics di-wrap `.catch(() => null/[])` agar gagal total
   // tidak menjatuhkan halaman — records tetap tampil.
-  const recordsPromise = getRecordsByShareToken(params.token, {
+  const recordsPromise = getRecordsByUserId(userId, {
     page,
     pageSize,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
   })
 
-  const monthlyStatsPromise = getMonthlyStatsByShareToken(params.token).catch(
-    () => null
+  const monthlyStatsPromise = getMonthlyStatsByUserId(userId).catch(() => null)
+  const chartDataPromise = get30DayChartDataByUserId(userId, 30).catch(
+    () => [] as Awaited<ReturnType<typeof get30DayChartDataByUserId>>
   )
-  const chartDataPromise = get30DayChartDataByShareToken(params.token, 30).catch(
-    () => [] as Awaited<ReturnType<typeof get30DayChartDataByShareToken>>
-  )
-  const categoryDataPromise = getCategoryStatsByShareToken(params.token, 30).catch(
+  const categoryDataPromise = getCategoryStatsByUserId(userId, 30).catch(
     () =>
       ({
         total: 0,
         items: [],
-      }) as Awaited<ReturnType<typeof getCategoryStatsByShareToken>>
+      }) as Awaited<ReturnType<typeof getCategoryStatsByUserId>>
   )
-  const trendPromise = getTrendComparisonByShareToken(params.token, 30).catch(
+  const trendPromise = getTrendComparisonByUserId(userId, 30).catch(
     () =>
       ({
         current: {
@@ -78,7 +127,7 @@ export default async function SharePage({ params, searchParams }: SharePageProps
         diastolicChange: 0,
         systolicTrend: 'stable' as const,
         diastolicTrend: 'stable' as const,
-      }) as Awaited<ReturnType<typeof getTrendComparisonByShareToken>>
+      }) as Awaited<ReturnType<typeof getTrendComparisonByUserId>>
   )
 
   const [
