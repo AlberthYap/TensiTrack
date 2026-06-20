@@ -23,7 +23,7 @@ export async function register(formData: FormData) {
 
   if (!validatedFields.success) {
     return {
-      error: validatedFields.error.errors[0].message,
+      error: validatedFields.error.issues[0].message,
     }
   }
 
@@ -61,7 +61,7 @@ export async function login(formData: FormData) {
 
   if (!validatedFields.success) {
     return {
-      error: validatedFields.error.errors[0].message,
+      error: validatedFields.error.issues[0].message,
     }
   }
 

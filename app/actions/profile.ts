@@ -49,7 +49,7 @@ export async function updateProfile(formData: FormData) {
   })
 
   if (!validatedFields.success) {
-    return { error: validatedFields.error.errors[0].message }
+    return { error: validatedFields.error.issues[0].message }
   }
 
   const { full_name, date_of_birth } = validatedFields.data
@@ -98,7 +98,7 @@ export async function changePassword(formData: FormData) {
   })
 
   if (!validatedFields.success) {
-    return { error: validatedFields.error.errors[0].message }
+    return { error: validatedFields.error.issues[0].message }
   }
 
   const { currentPassword, newPassword } = validatedFields.data
@@ -151,12 +151,15 @@ export async function deleteAccount(confirmation: string) {
       return { error: deleteError.message }
     }
   } catch (err) {
-    // Fallback: if admin client not available, sign out and let user know
+    // Fallback: if admin client not available, surface error to user.
+    // PENTING: TIDAK memanggil signOut() di sini — sebelumnya signOut
+    // dipanggil padahal akun TIDAK berhasil dihapus, sehingga user kehilangan
+    // akses ke akun yang masih ada. Sekarang user tetap login dan bisa
+    // mencoba lagi atau menghubungi admin.
     console.error('Admin client delete failed:', err)
-    await supabase.auth.signOut()
     return {
       error:
-        'Akun tidak dapat dihapus dari sisi server. Hubungi admin untuk menghapus data. Anda telah di-logout.',
+        'Akun tidak dapat dihapus dari sisi server. Hubungi admin untuk menghapus data.',
     }
   }
 

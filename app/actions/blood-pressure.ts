@@ -27,7 +27,7 @@ export async function addBloodPressureRecord(formData: FormData) {
 
   if (!validatedFields.success) {
     return {
-      error: validatedFields.error.errors[0].message,
+      error: validatedFields.error.issues[0].message,
     }
   }
 
@@ -78,7 +78,7 @@ export async function updateBloodPressureRecord(id: string, formData: FormData) 
 
   if (!validatedFields.success) {
     return {
-      error: validatedFields.error.errors[0].message,
+      error: validatedFields.error.issues[0].message,
     }
   }
 
