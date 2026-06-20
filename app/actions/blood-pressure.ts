@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { bloodPressureSchema } from '@/lib/validations'
 import { calculateCategory } from '@/lib/blood-pressure'
+import type { BloodPressureRecord } from '@/types/blood-pressure.types'
 
 export async function addBloodPressureRecord(formData: FormData) {
   const supabase = await createClient()
@@ -136,7 +137,7 @@ export async function deleteBloodPressureRecord(id: string) {
   return { success: true }
 }
 
-export async function getBloodPressureRecords() {
+export async function getBloodPressureRecords(): Promise<BloodPressureRecord[]> {
   const supabase = await createClient()
 
   // Get current user
@@ -156,7 +157,7 @@ export async function getBloodPressureRecords() {
     return []
   }
 
-  return data
+  return (data ?? []) as BloodPressureRecord[]
 }
 
 export interface GetRecordsOptions {

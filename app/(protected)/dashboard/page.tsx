@@ -14,10 +14,18 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage() {
   const supabase = await createClient()
 
-  // Get latest reading
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return null
+  }
+
+  // Get latest reading (filtered by user_id for defense-in-depth, walaupun
+  // RLS sudah menjamin isolasi)
   const { data: latestRecord } = await supabase
     .from('blood_pressure_records')
     .select('*')
+    .eq('user_id', user.id)
     .is('deleted_at', null)
     .order('measured_at', { ascending: false })
     .limit(1)
@@ -30,6 +38,7 @@ export default async function DashboardPage() {
   const { data: weeklyRecords } = await supabase
     .from('blood_pressure_records')
     .select('*')
+    .eq('user_id', user.id)
     .is('deleted_at', null)
     .gte('measured_at', sevenDaysAgo.toISOString())
     .order('measured_at', { ascending: true })

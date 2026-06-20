@@ -1,19 +1,24 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Upload, FileText, CheckCircle2, AlertCircle, X, Download, Loader2 } from 'lucide-react'
-import { CsvImportResult, parseCsvImport } from '@/lib/csv-import'
+import { CsvImportResult, parseCsvImport, MAX_IMPORT_ROWS } from '@/lib/csv-import'
 import { addBloodPressureRecord } from '@/app/actions/blood-pressure'
 import { CATEGORY_LABELS, calculateCategory } from '@/lib/blood-pressure'
 import { CategoryBadge } from '@/components/ui/category-badge'
+
+/** Batas ukuran file CSV yang boleh diupload (5 MB). */
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 
 interface CsvImportDialogProps {
   trigger?: React.ReactNode
 }
 
 export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [parseResult, setParseResult] = useState<CsvImportResult | null>(null)
   const [filename, setFilename] = useState<string>('')
@@ -22,16 +27,53 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
     success: number
     failed: number
   } | null>(null)
+  const [importProgress, setImportProgress] = useState<{
+    done: number
+    total: number
+  } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function handleFile(file: File) {
     setFilename(file.name)
     setImportResult(null)
+    setParseResult(null)
+
+    // Validasi ukuran file untuk mencegah OOM di browser & DoS.
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setParseResult({
+        validRows: [],
+        errors: [
+          {
+            row: 0,
+            message: `Ukuran file ${(file.size / 1024 / 1024).toFixed(1)} MB melebihi batas maksimum 5 MB. Silakan split file menjadi beberapa bagian.`,
+            raw: '',
+          },
+        ],
+        totalRows: 0,
+        truncated: false,
+      })
+      return
+    }
+
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
       const result = parseCsvImport(text)
       setParseResult(result)
+    }
+    reader.onerror = () => {
+      setParseResult({
+        validRows: [],
+        errors: [
+          {
+            row: 0,
+            message: 'Gagal membaca file. Pastikan file berformat CSV yang valid.',
+            raw: '',
+          },
+        ],
+        totalRows: 0,
+        truncated: false,
+      })
     }
     reader.readAsText(file)
   }
@@ -50,7 +92,14 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
     let success = 0
     let failed = 0
 
-    for (const row of parseResult.validRows) {
+    const total = parseResult.validRows.length
+    const updateProgress = (done: number) => {
+      setImportProgress({ done, total })
+    }
+    updateProgress(0)
+
+    for (let i = 0; i < parseResult.validRows.length; i++) {
+      const row = parseResult.validRows[i]
       try {
         const formData = new FormData()
         formData.append('systolic', String(row.systolic))
@@ -67,10 +116,20 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
       } catch {
         failed++
       }
+      updateProgress(i + 1)
     }
 
     setImportResult({ success, failed })
     setIsImporting(false)
+    setImportProgress(null)
+
+    // Merefresh data di halaman records & dashboard setelah import berhasil.
+    // Server action `addBloodPressureRecord` sudah memanggil
+    // `revalidatePath('/dashboard')` dan `revalidatePath('/records')`, tapi
+    // router.refresh() memastikan view di-mount component ini ikut update.
+    if (success > 0) {
+      router.refresh()
+    }
   }
 
   function downloadTemplate() {
@@ -291,12 +350,19 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
                 {isImporting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Mengimpor...
+                    {importProgress
+                      ? `Mengimpor ${importProgress.done}/${importProgress.total}...`
+                      : 'Mengimpor...'}
                   </>
                 ) : (
                   <>
                     <Upload className="w-4 h-4 mr-2" />
                     Import {parseResult.validRows.length} Baris
+                    {parseResult.truncated && (
+                      <span className="ml-1 text-xs opacity-90">
+                        (dari {parseResult.totalRows})
+                      </span>
+                    )}
                   </>
                 )}
               </Button>

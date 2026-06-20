@@ -2,6 +2,15 @@ import { BloodPressureInput } from '@/types/blood-pressure.types'
 import { calculateCategory } from '@/lib/blood-pressure'
 
 /**
+ * Batas maksimum baris data yang boleh diimpor sekaligus.
+ *
+ * Dibatasi untuk mencegah DoS (server action dipanggil ribuan kali) dan
+ * UX buruk (loading terlalu lama). User tetap bisa split file >MAX_ROWS
+ * menjadi beberapa batch.
+ */
+export const MAX_IMPORT_ROWS = 1000
+
+/**
  * Hasil parsing CSV: baris valid + daftar error per-baris.
  */
 export interface CsvImportResult {
@@ -12,6 +21,8 @@ export interface CsvImportResult {
     raw: string
   }>
   totalRows: number
+  /** true bila file melebihi MAX_IMPORT_ROWS dan harus di-split. */
+  truncated: boolean
 }
 
 /**
@@ -233,6 +244,7 @@ export function parseCsvImport(text: string): CsvImportResult {
       validRows: [],
       errors: [{ row: 0, message: 'File CSV kosong atau tidak memiliki data', raw: '' }],
       totalRows: 0,
+      truncated: false,
     }
   }
 
@@ -251,6 +263,7 @@ export function parseCsvImport(text: string): CsvImportResult {
         },
       ],
       totalRows: rows.length - 1,
+      truncated: false,
     }
   }
 
@@ -267,10 +280,27 @@ export function parseCsvImport(text: string): CsvImportResult {
     }
   }
 
+  // Batasi jumlah baris yang diproses untuk mencegah DoS & loading
+  // yang terlalu lama pada file besar.
+  const dataRowCount = rows.length - 1
+  const truncated = dataRowCount > MAX_IMPORT_ROWS
+  const finalValidRows = truncated
+    ? validRows.slice(0, MAX_IMPORT_ROWS)
+    : validRows
+
+  if (truncated) {
+    errors.push({
+      row: 0,
+      message: `File memiliki ${dataRowCount} baris, melebihi batas maksimum ${MAX_IMPORT_ROWS} baris. Hanya ${MAX_IMPORT_ROWS} baris pertama yang akan diimpor. Silakan split file menjadi beberapa bagian.`,
+      raw: '',
+    })
+  }
+
   return {
-    validRows,
+    validRows: finalValidRows,
     errors,
-    totalRows: rows.length - 1,
+    totalRows: dataRowCount,
+    truncated,
   }
 }
 
