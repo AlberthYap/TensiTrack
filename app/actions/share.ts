@@ -4,31 +4,28 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { nanoid } from 'nanoid'
-import { applyDateRange } from '@/lib/supabase/queries'
+import { PaginatedRecords, MonthlyStats, DailyPoint, CategoryDistribution, TrendComparison } from '@/types/blood-pressure.types'
 import {
-  BloodPressureRecord,
-  BloodPressureCategory,
-  PaginatedRecords,
-  MonthlyStats,
-  DailyPoint,
-  CategoryDistribution,
-  TrendComparison,
-} from '@/types/blood-pressure.types'
-import { calculateCategory } from '@/lib/blood-pressure'
+  getRecordsByUserId,
+  getMonthlyStatsByUserId,
+  get30DayChartDataByUserId,
+  getCategoryStatsByUserId,
+  getTrendComparisonByUserId,
+} from '@/lib/share-internal-queries'
+
+// SECURITY: `*ByUserId` helpers live in `@/lib/share-internal-queries.ts`
+// (no 'use server') so they cannot be invoked as public Server Actions.
 
 export async function generateShareToken(expiresInDays?: number | null, maxViews?: number | null) {
   const supabase = await createClient()
 
-  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized' }
   }
 
-  // Generate unique token
   const token = nanoid(32)
 
-  // Calculate expiration date if provided
   let expiresAt = null
   if (expiresInDays && expiresInDays > 0) {
     const expDate = new Date()
@@ -36,7 +33,6 @@ export async function generateShareToken(expiresInDays?: number | null, maxViews
     expiresAt = expDate.toISOString()
   }
 
-  // Insert share token
   const { data, error } = await supabase
     .from('share_tokens')
     .insert({
@@ -59,7 +55,6 @@ export async function generateShareToken(expiresInDays?: number | null, maxViews
 export async function getShareTokens() {
   const supabase = await createClient()
 
-  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized', data: [] }
@@ -82,7 +77,6 @@ export async function getShareTokens() {
 export async function revokeShareToken(tokenId: string) {
   const supabase = await createClient()
 
-  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized' }
@@ -105,7 +99,6 @@ export async function revokeShareToken(tokenId: string) {
 export async function deleteShareToken(tokenId: string) {
   const supabase = await createClient()
 
-  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized' }
@@ -131,19 +124,8 @@ export async function deleteShareToken(tokenId: string) {
 export type ShareTokenStatus = 'ok' | 'not_found' | 'inactive' | 'expired' | 'max_views_reached'
 
 /**
- * Validasi share token DAN increment view_count secara atomic via RPC.
- *
- * Sebelumnya, validasi + increment dilakukan read-modify-write di aplikasi
- * sehingga rentan race condition. Sekarang diserahkan ke Postgres dengan
- * row-level lock (FOR UPDATE) sehingga dijamin atomic.
- *
- * Mengembalikan null `data` dan `error` non-null bila token invalid/expired/
- * max_views_reached.
- *
- * PENTING: Fungsi ini meng-increment view_count. Panggil SEKALI per request
- * (mis. di share page atau export route). Untuk mengambil data tambahan
- * setelah token divalidasi, gunakan fungsi `*ByUserId` yang menerima
- * `user_id` langsung — agar view_count tidak di-increment berulang kali.
+ * Atomic token validation + view_count increment via RPC. Single entry point;
+ * calling more than once per request over-counts views.
  */
 export async function validateShareToken(token: string): Promise<{
   error: string | null
@@ -166,14 +148,13 @@ export async function validateShareToken(token: string): Promise<{
   })
 
   if (error) {
-    // Jika RPC belum ada (migration belum dijalankan), fallback ke logic lama
+    // Fallback lama jika RPC belum ada (migration belum dijalankan)
     if (error.code === 'PGRST202' || error.message.includes('function')) {
       return legacyValidateShareToken(token)
     }
     return { error: error.message, data: null }
   }
 
-  // RPC mengembalikan array; ambil baris pertama
   const row = Array.isArray(data) ? data[0] : data
   if (!row) {
     return { error: 'Invalid token', data: null }
@@ -209,11 +190,6 @@ export async function validateShareToken(token: string): Promise<{
   }
 }
 
-/**
- * Fallback implementation bila RPC `increment_share_token_view` belum
- * tersedia (mis. migration belum dijalankan). TIDAK atomic, hanya untuk
- * backward compat.
- */
 async function legacyValidateShareToken(token: string) {
   const supabase = createAdminClient()
 
@@ -252,74 +228,26 @@ async function legacyValidateShareToken(token: string) {
 }
 
 /**
- * Ambil record tekanan darah berdasarkan user_id (tanpa validasi token).
- *
- * Dipakai oleh share page SETELAH token divalidasi sekali (increment
- * view_count) agar tidak terjadi multi-increment view_count. Fungsi ini
- * TIDAK memvalidasi token dan TIDAK meng-increment view_count.
+ * Helper internal: validasi token dan kembalikan user_id, atau null.
+ * Memvalidasi token (atomic, increment view_count).
  */
-export async function getRecordsByUserId(
-  userId: string,
-  options: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}
-): Promise<PaginatedRecords & { error: string | null }> {
-  const supabase = createAdminClient()
-
-  const page = Math.max(1, options.page ?? 1)
-  const pageSize = Math.max(1, Math.min(100, options.pageSize ?? 10))
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-
-  let query = supabase
-    .from('blood_pressure_records')
-    .select('*', { count: 'exact' })
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-
-  query = applyDateRange(query, options)
-
-  const { data: records, error, count } = await query
-    .order('measured_at', { ascending: false })
-    .range(from, to)
-
-  if (error) {
-    return {
-      error: error.message,
-      data: [],
-      total: 0,
-      page,
-      pageSize,
-      totalPages: 1,
-    }
+async function resolveShareUserId(token: string): Promise<{ userId: string } | null> {
+  const { data: shareToken, error } = await validateShareToken(token)
+  if (error || !shareToken) {
+    return null
   }
-
-  const total = count ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-
-  return {
-    error: null,
-    data: (records || []) as BloodPressureRecord[],
-    total,
-    page,
-    pageSize,
-    totalPages,
-  }
+  return { userId: shareToken.user_id }
 }
 
-/**
- * Ambil record via share token. Memvalidasi token (atomic, increment
- * view_count) lalu mendelegasikan ke `getRecordsByUserId`.
- *
- * Gunakan ini untuk akses standalone (1 panggilan = 1 view). Untuk share
- * page yang mengambil banyak data sekaligus, validasi token sekali lalu
- * panggil `getRecordsByUserId` langsung.
- */
+// Each `*ByShareToken` helper validates the token atomically (1 view per
+// call), then delegates to its `*ByUserId` counterpart. Fail-soft per
+// return type — see individual signatures for fallback shape.
+
 export async function getRecordsByShareToken(
   token: string,
   options: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}
 ): Promise<PaginatedRecords & { error: string | null }> {
-  // Validate token first (atomic via RPC, increments view_count)
   const { data: shareToken, error: tokenError } = await validateShareToken(token)
-
   if (tokenError || !shareToken) {
     return {
       error: tokenError || 'Invalid token',
@@ -330,265 +258,19 @@ export async function getRecordsByShareToken(
       totalPages: 1,
     }
   }
-
   return getRecordsByUserId(shareToken.user_id, options)
 }
 
-/**
- * Agregat bulanan berdasarkan user_id (tanpa validasi token).
- *
- * Dipakai oleh share page SETELAH token divalidasi sekali agar view_count
- * tidak di-increment berulang. TIDAK memvalidasi token dan TIDAK
- * meng-increment view_count.
- *
- * Return `null` bila bulan tersebut tidak memiliki catatan, atau bila query
- * gagal — sehingga halaman share tidak pernah crash karena analitik.
- */
-export async function getMonthlyStatsByUserId(
-  userId: string,
-  year?: number,
-  month?: number
-): Promise<MonthlyStats | null> {
-  try {
-    const supabase = createAdminClient()
-
-    const now = new Date()
-    const targetYear = year ?? now.getFullYear()
-    const targetMonth = month ?? now.getMonth() + 1 // 1-12
-
-    const startOfMonth = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0, 0)
-    const endOfMonth = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999)
-
-    const { data, error } = await supabase
-      .from('blood_pressure_records')
-      .select('*')
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .gte('measured_at', startOfMonth.toISOString())
-      .lte('measured_at', endOfMonth.toISOString())
-      .order('measured_at', { ascending: true })
-
-    if (error) {
-      console.error('Error fetching share monthly stats:', error)
-      return null
-    }
-
-    if (!data || data.length === 0) {
-      return null
-    }
-
-    const totalReadings = data.length
-    const sumSystolic = data.reduce((acc, r) => acc + r.systolic, 0)
-    const sumDiastolic = data.reduce((acc, r) => acc + r.diastolic, 0)
-
-    const pulseValues = data
-      .map((r) => r.pulse)
-      .filter((p): p is number => typeof p === 'number')
-    const avgPulse =
-      pulseValues.length > 0
-        ? Math.round(pulseValues.reduce((acc, p) => acc + p, 0) / pulseValues.length)
-        : null
-
-    const highestSystolic = Math.max(...data.map((r) => r.systolic))
-    const highestDiastolic = Math.max(...data.map((r) => r.diastolic))
-    const lowestSystolic = Math.min(...data.map((r) => r.systolic))
-    const lowestDiastolic = Math.min(...data.map((r) => r.diastolic))
-
-    const uniqueDays = new Set(
-      data.map((r) => new Date(r.measured_at).toISOString().slice(0, 10))
-    )
-
-    const categoryBreakdown: Record<BloodPressureCategory, number> = {
-      low: 0,
-      normal: 0,
-      elevated: 0,
-      hypertension_stage_1: 0,
-      hypertension_stage_2: 0,
-    }
-    for (const r of data) {
-      const cat = calculateCategory(r.systolic, r.diastolic)
-      categoryBreakdown[cat]++
-    }
-
-    const monthNames = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ]
-    const monthLabel = `${monthNames[targetMonth - 1]} ${targetYear}`
-
-    return {
-      year: targetYear,
-      month: targetMonth,
-      monthLabel,
-      totalReadings,
-      averageSystolic: Math.round(sumSystolic / totalReadings),
-      averageDiastolic: Math.round(sumDiastolic / totalReadings),
-      averagePulse: avgPulse,
-      highestSystolic,
-      highestDiastolic,
-      lowestSystolic,
-      lowestDiastolic,
-      categoryBreakdown,
-      daysTracked: uniqueDays.size,
-    }
-  } catch (err) {
-    // Fail-soft: never break the share page because of analytics.
-    console.error('getMonthlyStatsByUserId failed:', err)
-    return null
-  }
-}
-
-/**
- * Agregat bulanan untuk pemilik data share token (read-only).
- *
- * Memvalidasi token (atomic, increment view_count) lalu mendelegasikan ke
- * `getMonthlyStatsByUserId`. Untuk share page, gunakan `getMonthlyStatsByUserId`
- * langsung setelah token divalidasi sekali.
- */
 export async function getMonthlyStatsByShareToken(
   token: string,
   year?: number,
   month?: number
 ): Promise<MonthlyStats | null> {
-  // Validate token (atomic via RPC, increments view_count)
-  const { data: shareToken, error: tokenError } = await validateShareToken(token)
-  if (tokenError || !shareToken) {
-    return null
-  }
-
-  return getMonthlyStatsByUserId(shareToken.user_id, year, month)
+  const resolved = await resolveShareUserId(token)
+  if (!resolved) return null
+  return getMonthlyStatsByUserId(resolved.userId, year, month)
 }
 
-/**
- * Helper internal: validasi share token dan kembalikan `user_id` pemilik
- * data, atau `null` bila token invalid/expired/max-views.
- *
- * Memvalidasi token (atomic, increment view_count). Dipakai oleh fungsi
- * `*ByShareToken` untuk akses standalone.
- */
-async function resolveShareUserId(
-  token: string
-): Promise<{ userId: string } | null> {
-  const { data: shareToken, error } = await validateShareToken(token)
-  if (error || !shareToken) {
-    return null
-  }
-  return { userId: shareToken.user_id }
-}
-
-/**
- * Agregat harian berdasarkan user_id (tanpa validasi token).
- *
- * Dipakai oleh share page SETELAH token divalidasi sekali agar view_count
- * tidak di-increment berulang. TIDAK memvalidasi token dan TIDAK
- * meng-increment view_count.
- *
- * Fail-soft: kembalikan `[]` bila query error, atau tidak ada catatan —
- * sehingga halaman share tidak pernah crash.
- */
-export async function get30DayChartDataByUserId(
-  userId: string,
-  days: number = 30
-): Promise<DailyPoint[]> {
-  try {
-    const supabase = createAdminClient()
-    const endDate = new Date()
-    endDate.setHours(23, 59, 59, 999)
-    const startDate = new Date(endDate)
-    startDate.setDate(startDate.getDate() - (days - 1))
-    startDate.setHours(0, 0, 0, 0)
-
-    const { data, error } = await supabase
-      .from('blood_pressure_records')
-      .select('*')
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .gte('measured_at', startDate.toISOString())
-      .lte('measured_at', endDate.toISOString())
-      .order('measured_at', { ascending: true })
-
-    if (error) {
-      console.error('Error fetching share 30-day chart:', error)
-      return []
-    }
-
-    // Bucket per tanggal lokal (yyyy-MM-dd)
-    const buckets = new Map<
-      string,
-      {
-        systolicSum: number
-        diastolicSum: number
-        pulseSum: number
-        pulseCount: number
-        count: number
-      }
-    >()
-
-    for (const r of data ?? []) {
-      const key = localDateKey(new Date(r.measured_at))
-      const existing = buckets.get(key) ?? {
-        systolicSum: 0,
-        diastolicSum: 0,
-        pulseSum: 0,
-        pulseCount: 0,
-        count: 0,
-      }
-      existing.systolicSum += r.systolic
-      existing.diastolicSum += r.diastolic
-      existing.count += 1
-      if (typeof r.pulse === 'number') {
-        existing.pulseSum += r.pulse
-        existing.pulseCount += 1
-      }
-      buckets.set(key, existing)
-    }
-
-    const result: DailyPoint[] = []
-    const cursor = new Date(startDate)
-    for (let i = 0; i < days; i++) {
-      const key = localDateKey(cursor)
-      const bucket = buckets.get(key)
-      result.push({
-        date: key,
-        label: formatChartLabel(cursor),
-        systolic: bucket ? Math.round(bucket.systolicSum / bucket.count) : null,
-        diastolic: bucket
-          ? Math.round(bucket.diastolicSum / bucket.count)
-          : null,
-        pulse:
-          bucket && bucket.pulseCount > 0
-            ? Math.round(bucket.pulseSum / bucket.pulseCount)
-            : null,
-        count: bucket?.count ?? 0,
-      })
-      cursor.setDate(cursor.getDate() + 1)
-    }
-
-    return result
-  } catch (err) {
-    console.error('get30DayChartDataByUserId failed:', err)
-    return []
-  }
-}
-
-/**
- * Agregat harian untuk share page (default: 30 hari).
- * Memvalidasi token (atomic, increment view_count) lalu mendelegasikan ke
- * `get30DayChartDataByUserId`.
- *
- * Fail-soft: kembalikan `[]` bila token invalid, query error, atau tidak
- * ada catatan — sehingga halaman share tidak pernah crash.
- */
 export async function get30DayChartDataByShareToken(
   token: string,
   days: number = 30
@@ -596,7 +278,6 @@ export async function get30DayChartDataByShareToken(
   try {
     const resolved = await resolveShareUserId(token)
     if (!resolved) return []
-
     return get30DayChartDataByUserId(resolved.userId, days)
   } catch (err) {
     console.error('get30DayChartDataByShareToken failed:', err)
@@ -604,81 +285,6 @@ export async function get30DayChartDataByShareToken(
   }
 }
 
-/**
- * Distribusi kategori berdasarkan user_id (tanpa validasi token).
- *
- * Dipakai oleh share page SETELAH token divalidasi sekali agar view_count
- * tidak di-increment berulang. TIDAK memvalidasi token dan TIDAK
- * meng-increment view_count.
- *
- * Fail-soft: kembalikan `{ total: 0, items: [] }` saat error.
- */
-export async function getCategoryStatsByUserId(
-  userId: string,
-  days: number = 30
-): Promise<CategoryDistribution> {
-  try {
-    const supabase = createAdminClient()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
-    startDate.setHours(0, 0, 0, 0)
-
-    const { data, error } = await supabase
-      .from('blood_pressure_records')
-      .select('systolic, diastolic, category')
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .gte('measured_at', startDate.toISOString())
-
-    if (error) {
-      console.error('Error fetching share category stats:', error)
-      return { total: 0, items: [] }
-    }
-
-    const total = data?.length ?? 0
-    const counts: Record<BloodPressureCategory, number> = {
-      low: 0,
-      normal: 0,
-      elevated: 0,
-      hypertension_stage_1: 0,
-      hypertension_stage_2: 0,
-    }
-
-    for (const r of data ?? []) {
-      // Recalculate kategori dari nilai mentah untuk konsistensi
-      const cat = calculateCategory(r.systolic, r.diastolic)
-      counts[cat]++
-    }
-
-    // Urutan: paling parah duluan
-    const order: BloodPressureCategory[] = [
-      'hypertension_stage_2',
-      'hypertension_stage_1',
-      'elevated',
-      'normal',
-      'low',
-    ]
-
-    const items = order.map((category) => ({
-      category,
-      count: counts[category],
-      percentage: total > 0 ? (counts[category] / total) * 100 : 0,
-    }))
-
-    return { total, items }
-  } catch (err) {
-    console.error('getCategoryStatsByUserId failed:', err)
-    return { total: 0, items: [] }
-  }
-}
-
-/**
- * Distribusi kategori untuk share page (default: 30 hari).
- * Memvalidasi token (atomic, increment view_count) lalu mendelegasikan ke
- * `getCategoryStatsByUserId`.
- *
- * Fail-soft: kembalikan `{ total: 0, items: [] }` saat token invalid / error.
- */
 export async function getCategoryStatsByShareToken(
   token: string,
   days: number = 30
@@ -686,7 +292,6 @@ export async function getCategoryStatsByShareToken(
   try {
     const resolved = await resolveShareUserId(token)
     if (!resolved) return { total: 0, items: [] }
-
     return getCategoryStatsByUserId(resolved.userId, days)
   } catch (err) {
     console.error('getCategoryStatsByShareToken failed:', err)
@@ -694,101 +299,6 @@ export async function getCategoryStatsByShareToken(
   }
 }
 
-/**
- * Perbandingan dua periode berdasarkan user_id (tanpa validasi token).
- *
- * Dipakai oleh share page SETELAH token divalidasi sekali agar view_count
- * tidak di-increment berulang. TIDAK memvalidasi token dan TIDAK
- * meng-increment view_count.
- *
- * Fail-soft: kembalikan struktur nol saat error.
- */
-export async function getTrendComparisonByUserId(
-  userId: string,
-  periodDays: number = 30
-): Promise<TrendComparison> {
-  try {
-    const supabase = createAdminClient()
-
-    const now = new Date()
-    const currentEnd = now
-    const currentStart = new Date(now)
-    currentStart.setDate(currentStart.getDate() - periodDays)
-    currentStart.setHours(0, 0, 0, 0)
-
-    const previousEnd = new Date(currentStart)
-    previousEnd.setMilliseconds(-1)
-    const previousStart = new Date(currentStart)
-    previousStart.setDate(previousStart.getDate() - periodDays)
-    previousStart.setHours(0, 0, 0, 0)
-
-    const fetchRange = async (start: Date, end: Date) => {
-      return supabase
-        .from('blood_pressure_records')
-        .select('systolic, diastolic')
-        .eq('user_id', userId)
-        .is('deleted_at', null)
-        .gte('measured_at', start.toISOString())
-        .lte('measured_at', end.toISOString())
-    }
-
-    const [{ data: currentData }, { data: previousData }] = await Promise.all([
-      fetchRange(currentStart, currentEnd),
-      fetchRange(previousStart, previousEnd),
-    ])
-
-    const summarize = (rows: { systolic: number; diastolic: number }[] | null) => {
-      if (!rows || rows.length === 0) {
-        return {
-          averageSystolic: 0,
-          averageDiastolic: 0,
-          readingCount: 0,
-        }
-      }
-      const sumS = rows.reduce((acc, r) => acc + r.systolic, 0)
-      const sumD = rows.reduce((acc, r) => acc + r.diastolic, 0)
-      return {
-        averageSystolic: Math.round(sumS / rows.length),
-        averageDiastolic: Math.round(sumD / rows.length),
-        readingCount: rows.length,
-      }
-    }
-
-    const current = summarize(currentData)
-    const previous = summarize(previousData)
-
-    const systolicChange = current.averageSystolic - previous.averageSystolic
-    const diastolicChange = current.averageDiastolic - previous.averageDiastolic
-
-    return {
-      current: {
-        startDate: currentStart.toISOString(),
-        endDate: currentEnd.toISOString(),
-        ...current,
-      },
-      previous: {
-        startDate: previousStart.toISOString(),
-        endDate: previousEnd.toISOString(),
-        ...previous,
-      },
-      systolicChange,
-      diastolicChange,
-      systolicTrend: classifyTrend(systolicChange),
-      diastolicTrend: classifyTrend(diastolicChange),
-    }
-  } catch (err) {
-    console.error('getTrendComparisonByUserId failed:', err)
-    return emptyTrendComparison(periodDays)
-  }
-}
-
-/**
- * Perbandingan dua periode (default: 30 hari vs 30 hari sebelumnya)
- * untuk share page. Memvalidasi token (atomic, increment view_count) lalu
- * mendelegasikan ke `getTrendComparisonByUserId`.
- *
- * Fail-soft: kembalikan struktur nol saat token invalid / error.
- */
 export async function getTrendComparisonByShareToken(
   token: string,
   periodDays: number = 30
@@ -796,7 +306,6 @@ export async function getTrendComparisonByShareToken(
   try {
     const resolved = await resolveShareUserId(token)
     if (!resolved) return emptyTrendComparison(periodDays)
-
     return getTrendComparisonByUserId(resolved.userId, periodDays)
   } catch (err) {
     console.error('getTrendComparisonByShareToken failed:', err)
@@ -806,54 +315,11 @@ export async function getTrendComparisonByShareToken(
 
 function emptyTrendComparison(periodDays: number): TrendComparison {
   return {
-    current: {
-      startDate: '',
-      endDate: '',
-      averageSystolic: 0,
-      averageDiastolic: 0,
-      readingCount: 0,
-    },
-    previous: {
-      startDate: '',
-      endDate: '',
-      averageSystolic: 0,
-      averageDiastolic: 0,
-      readingCount: 0,
-    },
+    current: { startDate: '', endDate: '', averageSystolic: 0, averageDiastolic: 0, readingCount: 0 },
+    previous: { startDate: '', endDate: '', averageSystolic: 0, averageDiastolic: 0, readingCount: 0 },
     systolicChange: 0,
     diastolicChange: 0,
     systolicTrend: 'stable',
     diastolicTrend: 'stable',
   }
-}
-
-function classifyTrend(change: number): 'up' | 'down' | 'stable' {
-  const threshold = 3
-  if (Math.abs(change) < threshold) return 'stable'
-  return change > 0 ? 'up' : 'down'
-}
-
-function localDateKey(d: Date): string {
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function formatChartLabel(d: Date): string {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'Mei',
-    'Jun',
-    'Jul',
-    'Agu',
-    'Sep',
-    'Okt',
-    'Nov',
-    'Des',
-  ]
-  return `${d.getDate()} ${months[d.getMonth()]}`
 }

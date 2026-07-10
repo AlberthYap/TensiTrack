@@ -11,10 +11,26 @@ import {
   resetPasswordSchema,
 } from '@/lib/validations'
 
-export async function register(formData: FormData) {
+export async function register(
+  formData: FormData,
+  accessToken: string
+) {
   const supabase = await createClient()
 
-  // Validate input
+  // SECURITY: server-side token check sebagai defense-in-depth di atas
+  // UI check. Mencegah adversary mengirim POST langsung ke server action
+  // `register` tanpa REGISTER_ACCESS_TOKEN dari environment.
+  const expected = process.env.REGISTER_ACCESS_TOKEN
+  if (
+    !expected ||
+    expected.length === 0 ||
+    typeof accessToken !== 'string' ||
+    accessToken.length !== expected.length ||
+    accessToken !== expected
+  ) {
+    return { error: 'Akses ditolak. Token registrasi tidak valid.' }
+  }
+
   const validatedFields = registerSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -29,7 +45,6 @@ export async function register(formData: FormData) {
 
   const { email, password, full_name } = validatedFields.data
 
-  // Sign up user
   const { error } = await supabase.auth.signUp({
     email,
     password,
@@ -53,7 +68,6 @@ export async function register(formData: FormData) {
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
-  // Validate input
   const validatedFields = loginSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -67,16 +81,14 @@ export async function login(formData: FormData) {
 
   const { email, password } = validatedFields.data
 
-  // Sign in user
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
 
   if (error) {
-    // Provide more helpful error messages
     console.error('Login error:', error)
-    
+
     if (error.message.includes('Email not confirmed')) {
       return {
         error: 'Email belum diverifikasi. Cek inbox email Anda atau hubungi admin.',
@@ -124,7 +136,6 @@ export async function forgotPassword(formData: FormData) {
 
   const { email } = validatedFields.data
 
-  // Determine the base URL from the request headers
   const headersList = headers()
   const host = headersList.get('host') || 'localhost:3000'
   const protocol = host.startsWith('localhost') ? 'http' : 'https'
@@ -165,7 +176,6 @@ export async function resetPassword(formData: FormData) {
 
   const { password } = validatedFields.data
 
-  // Verify user has an active session (came from email link)
   const {
     data: { user },
   } = await supabase.auth.getUser()

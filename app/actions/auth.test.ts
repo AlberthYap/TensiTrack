@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock supabase server client
 const mockGetUser = vi.fn()
 const mockSignInWithPassword = vi.fn()
 
@@ -30,6 +29,9 @@ vi.mock('next/headers', () => ({
 }))
 
 import { login, register } from '@/app/actions/auth'
+
+const VALID_REGISTER_TOKEN = 'test-register-token-abc123'
+process.env.REGISTER_ACCESS_TOKEN = VALID_REGISTER_TOKEN
 
 describe('login', () => {
   beforeEach(() => {
@@ -96,23 +98,60 @@ describe('register', () => {
     vi.clearAllMocks()
   })
 
-  it('returns error for too-short name', async () => {
+  it('rejects when accessToken is missing', async () => {
+    const fd = new FormData()
+    fd.set('email', 'user@example.com')
+    fd.set('password', 'secret123')
+    fd.set('full_name', 'John')
+
+    // @ts-expect-error testing missing arg
+    const result = await register(fd)
+    expect(result?.error).toMatch(/Akses ditolak/)
+  })
+
+  it('rejects when accessToken is wrong', async () => {
+    const fd = new FormData()
+    fd.set('email', 'user@example.com')
+    fd.set('password', 'secret123')
+    fd.set('full_name', 'John')
+
+    const result = await register(fd, 'wrong-token')
+    expect(result?.error).toMatch(/Akses ditolak/)
+  })
+
+  it('rejects when REGISTER_ACCESS_TOKEN env is unset', async () => {
+    const saved = process.env.REGISTER_ACCESS_TOKEN
+    delete process.env.REGISTER_ACCESS_TOKEN
+    try {
+      const fd = new FormData()
+      fd.set('email', 'user@example.com')
+      fd.set('password', 'secret123')
+      fd.set('full_name', 'John')
+
+      const result = await register(fd, 'any-token')
+      expect(result?.error).toMatch(/Akses ditolak/)
+    } finally {
+      process.env.REGISTER_ACCESS_TOKEN = saved
+    }
+  })
+
+  it('returns error for too-short name (when token valid)', async () => {
     const fd = new FormData()
     fd.set('email', 'user@example.com')
     fd.set('password', 'secret123')
     fd.set('full_name', 'A')
 
-    const result = await register(fd)
+    const result = await register(fd, VALID_REGISTER_TOKEN)
     expect(result?.error).toMatch(/Nama minimal 2/)
   })
 
-  it('returns error for password < 6 chars', async () => {
+  it('returns error for password < 6 chars (when token valid)', async () => {
     const fd = new FormData()
     fd.set('email', 'user@example.com')
     fd.set('password', '12345')
     fd.set('full_name', 'John')
 
-    const result = await register(fd)
+    const result = await register(fd, VALID_REGISTER_TOKEN)
     expect(result?.error).toMatch(/Password minimal 6/)
   })
 })

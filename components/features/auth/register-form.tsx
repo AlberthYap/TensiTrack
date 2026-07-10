@@ -8,12 +8,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AlertCircle } from 'lucide-react'
 
-export function RegisterForm() {
+export function RegisterForm({ accessToken }: { accessToken: string }) {
   const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(formData: FormData) {
     setError(null)
-    const result = await register(formData)
+    const result = await register(formData, accessToken)
     if (result?.error) {
       setError(result.error)
     }

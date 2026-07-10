@@ -11,18 +11,14 @@ interface RegisterPageProps {
 }
 
 export default function RegisterPage({ searchParams }: RegisterPageProps) {
-  // Token akses untuk registrasi - WAJIB di-set di environment variable.
-  // Jika tidak di-set, registrasi NON-AKTIF untuk mencegah akses publik
-  // tanpa sengaja.
+  // REGISTER_ACCESS_TOKEN wajib di-set di env. Tanpa env, semua akses
+  // ditolak — termasuk URL yang membawa token benar.
   const REGISTER_TOKEN = process.env.REGISTER_ACCESS_TOKEN
-
-  // Tanpa token env, atau token tidak cocok, tolak akses.
   const isAuthorized =
     typeof REGISTER_TOKEN === 'string' &&
     REGISTER_TOKEN.length > 0 &&
     searchParams.token === REGISTER_TOKEN
 
-  // Jika tidak ada token atau token salah, tampilkan halaman akses ditolak
   if (!isAuthorized) {
     return (
       <div className="space-y-6">
@@ -56,7 +52,6 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
             </Link>
           </div>
 
-          {/* Info untuk admin */}
           <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
             <p className="text-xs text-gray-500 dark:text-gray-400">
               <strong>Untuk Admin:</strong> Akses registrasi dengan URL:
@@ -70,7 +65,6 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
     )
   }
 
-  // Jika token valid, tampilkan form registrasi
   return (
     <div className="space-y-6">
       <div className="text-center animate-fade-in-up">
@@ -86,7 +80,7 @@ export default function RegisterPage({ searchParams }: RegisterPageProps) {
       </div>
 
       <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 dark:border-gray-700/50 p-6 sm:p-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-        <RegisterForm />
+        <RegisterForm accessToken={searchParams.token ?? ''} />
 
         <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800 text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
