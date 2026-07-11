@@ -5,6 +5,7 @@ import { LogOut, Loader2, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { logout } from '@/app/actions/auth'
 import { useTransition } from 'react'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { MobileNav } from './mobile-nav'
 
 interface HeaderProps {
@@ -67,6 +68,7 @@ export function Header({ user }: HeaderProps) {
             </div>
 
             <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+              <ThemeToggle />
               <div className="hidden sm:flex items-center gap-2.5 px-2.5 py-1.5 rounded-full bg-white/40 dark:bg-gray-800/40 border border-white/40 dark:border-gray-700/50">
                 <div className="relative w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
                   {initials}

@@ -16,6 +16,7 @@ import {
 import { BpCheckWidget } from '@/components/landing/bp-check-widget'
 import { DashboardPreview } from '@/components/landing/dashboard-preview'
 import { FaqSection } from '@/components/landing/faq-section'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export const metadata: Metadata = {
   title: 'Tensi Harian — Pencatat Tekanan Darah Pribadi',
@@ -56,13 +57,16 @@ export default function LandingPage() {
               Tensi Harian
             </span>
           </div>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200 transition-colors"
-          >
-            Masuk
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ThemeToggle />
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200 transition-colors"
+            >
+              Masuk
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </header>
 
