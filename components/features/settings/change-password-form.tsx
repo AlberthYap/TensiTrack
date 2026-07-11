@@ -67,10 +67,10 @@ export function ChangePasswordForm() {
           type="password"
           required
           autoComplete="new-password"
-          minLength={6}
+          minLength={8}
         />
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Minimal 6 karakter
+          Minimal 8 karakter, hindari password umum (cth. &quot;password123&quot;)
         </p>
       </div>
 
@@ -82,7 +82,7 @@ export function ChangePasswordForm() {
           type="password"
           required
           autoComplete="new-password"
-          minLength={6}
+          minLength={8}
         />
       </div>
 

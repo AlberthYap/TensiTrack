@@ -10,13 +10,14 @@ import { AlertCircle, Loader2, Trash2, X } from 'lucide-react'
 export function DeleteAccountDialog() {
   const [isOpen, setIsOpen] = useState(false)
   const [confirmation, setConfirmation] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleDelete() {
     setError(null)
     startTransition(async () => {
-      const result = await deleteAccount(confirmation)
+      const result = await deleteAccount(confirmation, password)
       if (result?.error) {
         setError(result.error)
       }
@@ -56,6 +57,7 @@ export function DeleteAccountDialog() {
               setIsOpen(false)
               setError(null)
               setConfirmation('')
+              setPassword('')
             }}
             disabled={isPending}
           >
@@ -94,6 +96,25 @@ export function DeleteAccountDialog() {
           />
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="delete-password">
+            Password saat ini
+          </Label>
+          <Input
+            id="delete-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={isPending}
+            autoComplete="current-password"
+            placeholder="••••••••"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Konfirmasi ulang password Anda sebagai langkah keamanan
+            terakhir.
+          </p>
+        </div>
+
         <div className="flex items-center justify-end gap-2 pt-2">
           <Button
             variant="outline"
@@ -101,6 +122,7 @@ export function DeleteAccountDialog() {
               setIsOpen(false)
               setError(null)
               setConfirmation('')
+              setPassword('')
             }}
             disabled={isPending}
           >
@@ -109,7 +131,7 @@ export function DeleteAccountDialog() {
           <Button
             variant="destructive"
             onClick={handleDelete}
-            disabled={isPending || confirmation !== 'HAPUS AKUN'}
+            disabled={isPending || confirmation !== 'HAPUS AKUN' || password.length === 0}
           >
             {isPending ? (
               <>

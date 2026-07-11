@@ -1,8 +1,8 @@
 'use server'
 
+import { timingSafeEqual } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import {
   registerSchema,
@@ -10,6 +10,18 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from '@/lib/validations'
+import { checkAuthRateLimit, getClientIp } from '@/lib/rate-limit'
+
+// Anti-abuse limits untuk endpoint auth.
+const LOGIN_MAX = 5
+const LOGIN_WINDOW_SECONDS = 15 * 60
+const REGISTER_MAX = 3
+const REGISTER_WINDOW_SECONDS = 60 * 60
+const FORGOT_PASSWORD_MAX = 3
+const FORGOT_PASSWORD_WINDOW_SECONDS = 60 * 60
+
+// Lockout banner generik — hindari user enumeration.
+const LOCKOUT_MESSAGE = 'Terlalu banyak permintaan. Coba lagi nanti.'
 
 export async function register(
   formData: FormData,
@@ -17,18 +29,29 @@ export async function register(
 ) {
   const supabase = await createClient()
 
-  // SECURITY: server-side token check sebagai defense-in-depth di atas
-  // UI check. Mencegah adversary mengirim POST langsung ke server action
-  // `register` tanpa REGISTER_ACCESS_TOKEN dari environment.
+  // Server-side gate: REGISTER_ACCESS_TOKEN harus cocok (timingSafeEqual).
   const expected = process.env.REGISTER_ACCESS_TOKEN
   if (
     !expected ||
     expected.length === 0 ||
     typeof accessToken !== 'string' ||
     accessToken.length !== expected.length ||
-    accessToken !== expected
+    !timingSafeEqual(
+      Buffer.from(expected, 'utf8'),
+      Buffer.from(accessToken, 'utf8')
+    )
   ) {
     return { error: 'Akses ditolak. Token registrasi tidak valid.' }
+  }
+
+  const ip = await getClientIp()
+  const { allowed } = await checkAuthRateLimit(
+    `register:ip:${ip}`,
+    REGISTER_MAX,
+    REGISTER_WINDOW_SECONDS
+  )
+  if (!allowed) {
+    return { error: LOCKOUT_MESSAGE }
   }
 
   const validatedFields = registerSchema.safeParse({
@@ -67,6 +90,21 @@ export async function register(
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
+
+  // Per-key composite {ip}+{email} agar attacker tidak bypass via rotasi IP.
+  const fd = formData
+  const emailRaw = fd.get('email')
+  const ip = await getClientIp()
+  if (typeof emailRaw === 'string' && emailRaw.length > 0) {
+    const { allowed } = await checkAuthRateLimit(
+      `login:ip:email:${ip}:${emailRaw.toLowerCase()}`,
+      LOGIN_MAX,
+      LOGIN_WINDOW_SECONDS
+    )
+    if (!allowed) {
+      return { error: LOCKOUT_MESSAGE }
+    }
+  }
 
   const validatedFields = loginSchema.safeParse({
     email: formData.get('email'),
@@ -126,6 +164,23 @@ export async function getUser() {
 export async function forgotPassword(formData: FormData) {
   const supabase = await createClient()
 
+  // Per-email — cegah inbox bombing.
+  const emailRaw = formData.get('email')
+  if (typeof emailRaw === 'string' && emailRaw.length > 0) {
+    const { allowed } = await checkAuthRateLimit(
+      `forgot:email:${emailRaw.toLowerCase()}`,
+      FORGOT_PASSWORD_MAX,
+      FORGOT_PASSWORD_WINDOW_SECONDS
+    )
+    if (!allowed) {
+      // Respons generik identik dengan sukses — jangan bocorkan rate-limit vs unregistered email.
+      return {
+        success:
+          'Jika email terdaftar, link reset password telah dikirim. Cek inbox Anda.',
+      }
+    }
+  }
+
   const validatedFields = forgotPasswordSchema.safeParse({
     email: formData.get('email'),
   })
@@ -136,19 +191,22 @@ export async function forgotPassword(formData: FormData) {
 
   const { email } = validatedFields.data
 
-  const headersList = headers()
-  const host = headersList.get('host') || 'localhost:3000'
-  const protocol = host.startsWith('localhost') ? 'http' : 'https'
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
-  const redirectTo = `${baseUrl}/reset-password`
+  // Hanya NEXT_PUBLIC_APP_URL — JANGAN pakai Host header (Host Header Injection).
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!appUrl) {
+    console.error('forgotPassword: NEXT_PUBLIC_APP_URL not configured')
+    return {
+      success:
+        'Jika email terdaftar, link reset password telah dikirim. Cek inbox Anda.',
+    }
+  }
+  const redirectTo = `${appUrl.replace(/\/+$/, '')}/reset-password`
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
   })
 
   if (error) {
-    // For security, do not reveal whether the email is registered.
-    // Return success message either way unless there's a true server error.
     console.error('Forgot password error:', error)
     return {
       success:

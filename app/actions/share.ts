@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { nanoid } from 'nanoid'
@@ -13,8 +14,28 @@ import {
   getTrendComparisonByUserId,
 } from '@/lib/share-internal-queries'
 
-// SECURITY: `*ByUserId` helpers live in `@/lib/share-internal-queries.ts`
-// (no 'use server') so they cannot be invoked as public Server Actions.
+// SECURITY: helpers di lib/share-internal-queries.ts TIDAK memakai 'use server'
+// sehingga tidak terekspos sebagai Server Action publik.
+
+// Constants untuk anti-abuse validateShareToken.
+const SHARE_RATE_LIMIT_MAX = 30
+const SHARE_RATE_LIMIT_WINDOW_SECONDS = 60
+
+async function getClientIp(): Promise<string> {
+  try {
+    const h = headers()
+    const xff = h.get('x-forwarded-for')
+    if (xff) {
+      const first = xff.split(',')[0]?.trim()
+      if (first) return first.slice(0, 64)
+    }
+    const realIp = h.get('x-real-ip')
+    if (realIp) return realIp.slice(0, 64)
+    return 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
 
 export async function generateShareToken(expiresInDays?: number | null, maxViews?: number | null) {
   const supabase = await createClient()
@@ -118,9 +139,6 @@ export async function deleteShareToken(tokenId: string) {
   return { success: true }
 }
 
-/**
- * Status hasil increment atomik.
- */
 export type ShareTokenStatus = 'ok' | 'not_found' | 'inactive' | 'expired' | 'max_views_reached'
 
 /**
@@ -143,12 +161,35 @@ export async function validateShareToken(token: string): Promise<{
 }> {
   const supabase = createAdminClient()
 
+  // Rate limit per IP — fail-open agar legitimate user tidak gagal bila RPC down.
+  try {
+    const ip = await getClientIp()
+    const { data: rateAllowed, error: rateError } = await supabase.rpc(
+      'check_share_rate_limit',
+      {
+        p_ip: ip,
+        p_max_count: SHARE_RATE_LIMIT_MAX,
+        p_window_seconds: SHARE_RATE_LIMIT_WINDOW_SECONDS,
+      }
+    )
+    if (rateError) {
+      console.error('Share rate limit check failed (fail-open):', rateError)
+    } else if (rateAllowed === false) {
+      return {
+        error: 'Terlalu banyak permintaan. Coba lagi nanti.',
+        data: null,
+      }
+    }
+  } catch (err) {
+    console.error('Share rate limit threw (fail-open):', err)
+  }
+
   const { data, error } = await supabase.rpc('increment_share_token_view', {
     p_token: token,
   })
 
   if (error) {
-    // Fallback lama jika RPC belum ada (migration belum dijalankan)
+    // Fallback lama jika RPC belum ada (migration belum dijalankan).
     if (error.code === 'PGRST202' || error.message.includes('function')) {
       return legacyValidateShareToken(token)
     }
@@ -227,10 +268,6 @@ async function legacyValidateShareToken(token: string) {
   return { error: null, data: shareToken }
 }
 
-/**
- * Helper internal: validasi token dan kembalikan user_id, atau null.
- * Memvalidasi token (atomic, increment view_count).
- */
 async function resolveShareUserId(token: string): Promise<{ userId: string } | null> {
   const { data: shareToken, error } = await validateShareToken(token)
   if (error || !shareToken) {
@@ -239,9 +276,8 @@ async function resolveShareUserId(token: string): Promise<{ userId: string } | n
   return { userId: shareToken.user_id }
 }
 
-// Each `*ByShareToken` helper validates the token atomically (1 view per
-// call), then delegates to its `*ByUserId` counterpart. Fail-soft per
-// return type — see individual signatures for fallback shape.
+// Setiap *ByShareToken memvalidasi token atomik (1 view per call),
+// lalu delegasi ke *ByUserId. Fail-soft per return type.
 
 export async function getRecordsByShareToken(
   token: string,

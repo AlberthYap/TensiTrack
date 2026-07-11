@@ -53,19 +53,18 @@ export function RegisterForm({ accessToken }: { accessToken: string }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          placeholder="••••••••"
-          required
-          autoComplete="new-password"
-          minLength={6}
-        />
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Minimal 6 karakter
-        </p>
+        <Label htmlFor="password">Password</Label>          <Input
+            id="password"
+            name="password"
+            type="password"
+            placeholder="••••••••"
+            required
+            autoComplete="new-password"
+            minLength={8}
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Minimal 8 karakter, hindari password umum (cth. &quot;password123&quot;)
+          </p>
       </div>
 
       <SubmitButton />

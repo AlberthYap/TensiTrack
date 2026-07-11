@@ -54,7 +54,6 @@ export async function updateProfile(formData: FormData) {
 
   const { full_name, date_of_birth } = validatedFields.data
 
-  // Update profiles table
   const { error: profileError } = await supabase
     .from('profiles')
     .update({
@@ -67,13 +66,11 @@ export async function updateProfile(formData: FormData) {
     return { error: profileError.message }
   }
 
-  // Also update user_metadata for consistency (e.g. header greeting)
   const { error: metaError } = await supabase.auth.updateUser({
     data: { full_name },
   })
 
   if (metaError) {
-    // Non-fatal: metadata update is best-effort
     console.warn('Failed to update user metadata:', metaError)
   }
 
@@ -103,7 +100,6 @@ export async function changePassword(formData: FormData) {
 
   const { currentPassword, newPassword } = validatedFields.data
 
-  // Verify current password by re-authenticating
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email: user.email,
     password: currentPassword,
@@ -113,7 +109,6 @@ export async function changePassword(formData: FormData) {
     return { error: 'Password saat ini salah' }
   }
 
-  // Update password
   const { error } = await supabase.auth.updateUser({
     password: newPassword,
   })
@@ -125,7 +120,12 @@ export async function changePassword(formData: FormData) {
   return { success: 'Password berhasil diubah' }
 }
 
-export async function deleteAccount(confirmation: string) {
+/**
+ * Hapus akun: wajib re-auth password untuk mencegah session-hijack abuse.
+ * BUG #15: jika admin delete gagal, JANGAN signOut — user harus tetap
+ * punya akses untuk coba lagi / hubungi admin.
+ */
+export async function deleteAccount(confirmation: string, password: string) {
   const supabase = await createClient()
 
   const {
@@ -139,8 +139,29 @@ export async function deleteAccount(confirmation: string) {
     return { error: 'Konfirmasi tidak valid. Ketik "HAPUS AKUN" untuk melanjutkan.' }
   }
 
-  // Use admin client to delete user (cascade will clean up profiles and records
-  // via ON DELETE CASCADE foreign keys)
+  if (!user.email) {
+    return {
+      error:
+        'Akun tidak memiliki email yang dapat diverifikasi. Hubungi admin.',
+    }
+  }
+  if (typeof password !== 'string' || password.length === 0) {
+    return {
+      error: 'Password saat ini wajib diisi untuk konfirmasi penghapusan akun.',
+    }
+  }
+
+  const { error: reAuthError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  })
+  if (reAuthError) {
+    console.warn('deleteAccount: re-auth failed:', reAuthError)
+    return {
+      error: 'Password salah atau sesi tidak valid. Coba lagi.',
+    }
+  }
+
   try {
     const adminClient = createAdminClient()
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(
@@ -151,11 +172,6 @@ export async function deleteAccount(confirmation: string) {
       return { error: deleteError.message }
     }
   } catch (err) {
-    // Fallback: if admin client not available, surface error to user.
-    // PENTING: TIDAK memanggil signOut() di sini — sebelumnya signOut
-    // dipanggil padahal akun TIDAK berhasil dihapus, sehingga user kehilangan
-    // akses ke akun yang masih ada. Sekarang user tetap login dan bisa
-    // mencoba lagi atau menghubungi admin.
     console.error('Admin client delete failed:', err)
     return {
       error:
@@ -163,7 +179,6 @@ export async function deleteAccount(confirmation: string) {
     }
   }
 
-  // Sign out current session
   await supabase.auth.signOut()
   revalidatePath('/', 'layout')
   redirect('/?deleted=1')

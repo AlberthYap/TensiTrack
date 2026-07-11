@@ -18,19 +18,84 @@
 
 # misc
 .DS_Store
-*.pem
 
-# debug
+# debug logs (generic + tool-specific)
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
+# local env files (JANGAN PERNAH commit!)
 .env*.local
 .env
 
+# secrets — sertifikat, key pair, dan folder secrets khusus
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+
+# SSH private keys (exact pattern, tidak match .pub)
+/id_rsa
+/id_dsa
+/id_ecdsa
+/id_ed25519
+
+# Folder secrets khusus (opsional, untuk konvensi proyek)
+/secrets/
+/private/
+/credentials/
+
+# Cloud CLI credentials (sering bikin ~/.aws/, ~/.gcp/, dll tracked)
+/.aws/
+/.gcp/
+/.azure/
+
+# HTTP auth credentials di .netrc (basic auth)
+/.netrc
+
+# npm auth tokens (.npmrc sering dipakai install private registry)
+/.npmrc
+
 # vercel
-.vercel
+/.vercel/
+
+# database dumps & local DB files (sering dibuat saat debug)
+/dump
+/dump.sql
+*.dump
+*.pg_dump
+*.sqlite
+*.sqlite3
+*.db
+
+# backup & patch artefacts
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.swp
+*~
+
+# editor / IDE config
+/.vscode/
+/.idea/
+/.cursor/
+
+# local scripts & scratch (per-machine)
+/scripts/local/
+/scratch/
+/TODO.local.md
+/notes.local.md
+
+# test artefacts dari browser testing
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/.lighthouseci/
 
 # typescript
 *.tsbuildinfo
