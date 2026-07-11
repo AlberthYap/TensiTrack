@@ -33,10 +33,20 @@ const FAQS = [
     q: 'Bagaimana cara mencatat tekanan darah dengan benar?',
     a: (
       <>
-        Idealnya: istirahat 5 menit sebelum mengukur, posisi duduk tegak, lengan
-        disangga setinggi jantung, ukuran cuff sesuai lengan, dan catat 2
-        pembacaan dengan jeda 1 menit. Catat sistolik, diastolik, denyut nadi,
-        dan waktu pengukuran untuk akurasi analisis.
+        Idealnya: gunakan tensimeter digital otomatis dengan manset di{' '}
+        <strong>lengan atas</strong> (gold standard PERHI/AHA — paling akurat).
+Alat pergelangan tangan hanya dipakai jika alatnya sudah tervalidasi klinis;
+alat jari tidak direkomendasikan, 2–3 cm di atas lipatan
+        siku, di kulit langsung (bukan di atas baju tebal), dengan ukuran
+        manset sesuai lingkar lengan Anda.{' '}
+        <strong>Posisi:</strong> duduk dengan punggung bersandar, kaki rata
+        menapak di lantai (tidak disilangkan), lengan disangga di meja setinggi
+        jantung, dan tidak bicara selama pengukuran.{' '}
+        <strong>Persiapan:</strong> istirahat 5 menit &amp; hindari kafein,
+        rokok, atau olahraga berat 30 menit sebelumnya.{' '}
+        <strong>Pengukuran:</strong> catat 2 pembacaan dengan jeda 1–2 menit, di waktu yang sama setiap hari (pagi sebelum makan/obat dan malam sebelum tidur).
+        Untuk pertama kali, ukur di kedua lengan — jika beda &gt;10 mmHg,
+        gunakan lengan dengan nilai lebih tinggi untuk rutinitas.
       </>
     ),
   },

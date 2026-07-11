@@ -19,10 +19,10 @@ export function calculateCategory(
   systolic: number,
   diastolic: number
 ): BloodPressureCategory {
-  // Low
-  if (systolic < 90 || diastolic < 60) {
-    return 'low'
-  }
+  // IMPORTANT (AHA "use higher category" rule):
+  // When systolic and diastolic fall into different categories,
+  // the higher (more severe) category wins. So hypertension stages
+  // are evaluated BEFORE hypotension (low).
 
   // Hypertension Stage 2
   if (systolic >= 140 || diastolic >= 90) {
@@ -32,6 +32,12 @@ export function calculateCategory(
   // Hypertension Stage 1
   if (systolic >= 130 || diastolic >= 80) {
     return 'hypertension_stage_1'
+  }
+
+  // Low (hypotension): evaluated only after HTN checks, so a high
+  // DBP still correctly escalates the reading.
+  if (systolic < 90 || diastolic < 60) {
+    return 'low'
   }
 
   // Elevated

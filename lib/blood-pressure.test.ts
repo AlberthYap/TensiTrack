@@ -58,6 +58,25 @@ describe('calculateCategory', () => {
       // systolic < 120 (normal) BUT diastolic >= 80 (stage 1) → stage 1 wins
       expect(calculateCategory(119, 80)).toBe('hypertension_stage_1')
     })
+
+    it('uses higher category (AHA rule): low SBP < 90 but stage 1 DBP returns stage 1', () => {
+      // Regression: previously returned 'low' which violated AHA's
+      // "use higher category" rule when DBP is in stage 1 range.
+      expect(calculateCategory(89, 80)).toBe('hypertension_stage_1')
+      expect(calculateCategory(85, 85)).toBe('hypertension_stage_1')
+    })
+
+    it('uses higher category (AHA rule): low SBP < 90 but stage 2 DBP returns stage 2', () => {
+      // Regression: previously returned 'low' when DBP >= 90
+      expect(calculateCategory(85, 95)).toBe('hypertension_stage_2')
+      expect(calculateCategory(70, 110)).toBe('hypertension_stage_2')
+    })
+
+    it('uses higher category (AHA rule): aggressively low SBP 80 + stage 1 DBP 85 still returns stage 1', () => {
+      // Symmetric regression test mirroring (89, 80) — documents AHA "use higher category"
+      // rule from a deeper hypotension SBP. DBP=85 must win over SBP=80.
+      expect(calculateCategory(80, 85)).toBe('hypertension_stage_1')
+    })
   })
 })
 
