@@ -65,6 +65,13 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* WCAG 2.4.7 — visible focus indicator for keyboard users.
+     Applied to any focusable element on :focus-visible only (mouse
+     users see no ring; keyboard users get a clear ring). */
+  :focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-background;
+  }
 }
 
 @layer utilities {

@@ -38,7 +38,10 @@ import { useCallback, useState, useTransition } from 'react'
 import { deleteBloodPressureRecord } from '@/app/actions/blood-pressure'
 import * as XLSX from 'xlsx'
 import { exportRecordsToPdf } from '@/lib/pdf-export'
+import { isHypertensionCrisis } from '@/lib/blood-pressure'
 import { EmptyState } from '@/components/ui/empty-state'
+import { CrisisAlert } from '@/components/features/emergency/crisis-alert'
+import { cn } from '@/lib/utils'
 
 interface RecordsListProps {
   records: BloodPressureRecord[]
@@ -336,45 +339,69 @@ export function RecordsList({
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                  {records.map((record) => (
-                    <tr
-                      key={record.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                    >
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {formatDate(record.measured_at)}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
-                          <Clock className="w-3 h-3" />
-                          {formatTime(record.measured_at)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <Link
-                          href={`/records/${record.id}`}
-                          className="font-bold text-lg text-gradient hover:opacity-80 transition-opacity"
-                        >
-                          {formatBloodPressure(record.systolic, record.diastolic)}
-                        </Link>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                          mmHg
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {record.pulse ? (
-                          <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
-                            <Heart className="w-3.5 h-3.5" />
-                            <span className="font-medium">{record.pulse}</span>
-                            <span className="text-xs">bpm</span>
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
+                  {records.map((record) => {
+                    const isCrisis = isHypertensionCrisis(
+                      record.systolic,
+                      record.diastolic
+                    )
+                    return (
+                      <tr
+                        key={record.id}
+                        className={cn(
+                          'transition-colors border-l-4',
+                          isCrisis
+                            ? 'bg-red-50/60 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30 border-l-red-600'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 border-l-transparent'
                         )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <CategoryBadge category={record.category} size="sm" />
-                      </td>
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap text-sm">
+                          <div className="font-medium text-gray-900 dark:text-white">
+                            {formatDate(record.measured_at)}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                            <Clock className="w-3 h-3" />
+                            {formatTime(record.measured_at)}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <Link
+                            href={`/records/${record.id}`}
+                            className={cn(
+                              'font-bold text-lg hover:opacity-80 transition-opacity',
+                              isCrisis
+                                ? 'text-red-700 dark:text-red-300'
+                                : 'text-gradient'
+                            )}
+                          >
+                            {formatBloodPressure(record.systolic, record.diastolic)}
+                          </Link>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                            mmHg
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm">
+                          {record.pulse ? (
+                            <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                              <Heart className="w-3.5 h-3.5" />
+                              <span className="font-medium">{record.pulse}</span>
+                              <span className="text-xs">bpm</span>
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <CategoryBadge category={record.category} size="sm" />
+                            {isCrisis && (
+                              <CrisisAlert
+                                systolic={record.systolic}
+                                diastolic={record.diastolic}
+                                variant="inline"
+                              />
+                            )}
+                          </div>
+                        </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-[200px]">
                         {record.notes ? (
                           <div className="flex items-start gap-1">
@@ -449,8 +476,9 @@ export function RecordsList({
                           </div>
                         </td>
                       )}
-                    </tr>
-                  ))}
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -460,23 +488,49 @@ export function RecordsList({
 
       {/* Mobile Cards */}
       <div className="md:hidden space-y-3">
-        {records.map((record) => (
-          <Card key={record.id} className="overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <Link
-                    href={`/records/${record.id}`}
-                    className="text-2xl font-bold text-gradient"
-                  >
-                    {formatBloodPressure(record.systolic, record.diastolic)}
-                  </Link>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {formatDate(record.measured_at)} • {formatTime(record.measured_at)}
-                  </p>
+        {records.map((record) => {
+          const isCrisis = isHypertensionCrisis(
+            record.systolic,
+            record.diastolic
+          )
+          return (
+            <Card
+              key={record.id}
+              className={cn(
+                'overflow-hidden',
+                isCrisis && 'border-2 border-red-600 bg-red-50/40 dark:bg-red-950/20'
+              )}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
+                  <div>
+                    <Link
+                      href={`/records/${record.id}`}
+                      className={cn(
+                        'text-2xl font-bold',
+                        isCrisis
+                          ? 'text-red-700 dark:text-red-300'
+                          : 'text-gradient'
+                      )}
+                    >
+                      {formatBloodPressure(record.systolic, record.diastolic)}
+                    </Link>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {formatDate(record.measured_at)} •{' '}
+                      {formatTime(record.measured_at)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <CategoryBadge category={record.category} size="sm" />
+                    {isCrisis && (
+                      <CrisisAlert
+                        systolic={record.systolic}
+                        diastolic={record.diastolic}
+                        variant="inline"
+                      />
+                    )}
+                  </div>
                 </div>
-                <CategoryBadge category={record.category} size="sm" />
-              </div>
 
               <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400 mb-3">
                 {record.pulse && (
@@ -544,7 +598,8 @@ export function RecordsList({
               )}
             </CardContent>
           </Card>
-        ))}
+          )
+        })}
       </div>
 
       {/* Pagination */}

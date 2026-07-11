@@ -5,7 +5,10 @@ import { LatestReading } from '@/components/features/dashboard/latest-reading'
 import { QuickStats } from '@/components/features/dashboard/quick-stats'
 import { WeeklyChart } from '@/components/features/dashboard/weekly-chart'
 import { QuickAddButton } from '@/components/features/dashboard/quick-add-button'
+import { DashboardInsightWidget } from '@/components/features/dashboard/insight-widget'
 import { EmptyState } from '@/components/ui/empty-state'
+import { generateTrendInsights, type Insight } from '@/lib/insights'
+import { getTrendComparison } from '@/app/actions/analytics'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
@@ -55,6 +58,17 @@ export default async function DashboardPage() {
       }
     : null
 
+  // Compute weekly insight (this-week vs last-week) for the dashboard widget.
+  // Defensive try/catch so a transient failure never breaks the page.
+  let insights: Insight[] = []
+  try {
+    const trendComparison = await getTrendComparison(7)
+    insights = generateTrendInsights(trendComparison)
+  } catch (error) {
+    console.error('Failed to compute weekly insights:', error)
+    insights = []
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -92,6 +106,11 @@ export default async function DashboardPage() {
             />
           </CardContent>
         </Card>
+      )}
+
+      {/* Weekly Insight (compact, mobile-first) */}
+      {insights.length > 0 && (
+        <DashboardInsightWidget insights={insights} />
       )}
 
       {/* Quick Stats */}

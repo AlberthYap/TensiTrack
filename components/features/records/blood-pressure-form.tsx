@@ -1,17 +1,57 @@
 'use client'
 
 import { useFormStatus } from 'react-dom'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { addBloodPressureRecord, updateBloodPressureRecord } from '@/app/actions/blood-pressure'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, Save, X } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
+  Save,
+  WifiOff,
+  X,
+} from 'lucide-react'
 import { BloodPressureRecord } from '@/types/blood-pressure.types'
 import { calculateCategory, getCategoryInfo } from '@/lib/blood-pressure'
 import { CategoryBadge } from '@/components/ui/category-badge'
+
+/**
+ * useOnlineStatus — return true while the device reports a network connection.
+ *
+ * Catatan: `navigator.onLine` hanya menandakan koneksi ke network adapter,
+ * bukan konektivitas internet sebenarnya. Tetap berguna untuk UX cepat
+ * (disable tombol submit) sebelum request benar-benar gagal.
+ *
+ * Update realtime via window 'online' / 'offline' events — bracketed agar
+ * aman dari React 18 StrictMode double-invoke di dev.
+ */
+function useOnlineStatus(): boolean {
+  const [isOnline, setIsOnline] = useState<boolean>(true)
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+      setIsOnline(navigator.onLine)
+    }
+
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  return isOnline
+}
 
 interface BloodPressureFormProps {
   record?: BloodPressureRecord
@@ -40,6 +80,7 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   const [error, setError] = useState<string | null>(null)
   const [showDiscard, setShowDiscard] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const isOnline = useOnlineStatus()
   const isEdit = !!record
 
   // Convert UTC string to local datetime string for the input
@@ -124,6 +165,30 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   return (
     <>
       <form ref={formRef} action={handleSubmit} className="space-y-6">
+        {/* Offline warning banner — appears when navigator.onLine === false.
+            role="status" announces the message politely to screen readers. */}
+        {!isOnline && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-start gap-2 animate-fade-in-up"
+          >
+            <WifiOff
+              className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"
+              aria-hidden="true"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                Tidak ada koneksi internet
+              </p>
+              <p className="text-sm text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                Penyimpanan catatan memerlukan koneksi. Silakan tunggu sampai
+                online kembali untuk menyimpan.
+              </p>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start gap-2 animate-fade-in-up">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
@@ -247,7 +312,11 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
         </div>
 
         <div className="flex gap-3 pt-2">
-          <SubmitButton isEdit={isEdit} isDirty={isDirty()} />
+          <SubmitButton
+            isEdit={isEdit}
+            isDirty={isDirty()}
+            isOffline={!isOnline}
+          />
           <Button
             type="button"
             variant="outline"
@@ -310,13 +379,28 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   )
 }
 
-function SubmitButton({ isEdit, isDirty }: { isEdit: boolean; isDirty: boolean }) {
+function SubmitButton({
+  isEdit,
+  isDirty,
+  isOffline,
+}: {
+  isEdit: boolean
+  isDirty: boolean
+  isOffline: boolean
+}) {
   const { pending } = useFormStatus()
 
   return (
     <Button
       type="submit"
-      disabled={pending || !isDirty}
+      disabled={pending || !isDirty || isOffline}
+      title={
+        isOffline
+          ? 'Tidak dapat menyimpan saat offline'
+          : !isDirty
+            ? 'Form belum diubah'
+            : undefined
+      }
       className="bg-blue-600 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {pending ? (

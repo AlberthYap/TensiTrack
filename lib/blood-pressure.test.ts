@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   CATEGORY_LABELS,
+  CRISIS_INFO,
   calculateCategory,
   formatBloodPressure,
   getCategoryInfo,
   getTrend,
+  isHypertensionCrisis,
 } from '@/lib/blood-pressure'
 
 describe('calculateCategory', () => {
@@ -139,5 +141,47 @@ describe('getTrend', () => {
   it('uses absolute difference (handles lower→higher equally)', () => {
     expect(getTrend(120, 115)).toBe('up')
     expect(getTrend(120, 125)).toBe('down')
+  })
+})
+
+describe('isHypertensionCrisis', () => {
+  it('returns true when systolic >= 180 (regardless of diastolic)', () => {
+    expect(isHypertensionCrisis(180, 80)).toBe(true)
+    expect(isHypertensionCrisis(200, 90)).toBe(true)
+    expect(isHypertensionCrisis(185, 75)).toBe(true)
+  })
+
+  it('returns true when diastolic >= 120 (regardless of systolic)', () => {
+    expect(isHypertensionCrisis(140, 120)).toBe(true)
+    expect(isHypertensionCrisis(160, 130)).toBe(true)
+    expect(isHypertensionCrisis(110, 125)).toBe(true)
+  })
+
+  it('returns false for elevated stage 2 below crisis threshold', () => {
+    expect(isHypertensionCrisis(179, 119)).toBe(false)
+    expect(isHypertensionCrisis(140, 90)).toBe(false)
+    expect(isHypertensionCrisis(150, 100)).toBe(false)
+  })
+
+  it('returns false for healthy and stage 1 readings', () => {
+    expect(isHypertensionCrisis(120, 80)).toBe(false)
+    expect(isHypertensionCrisis(135, 85)).toBe(false)
+    expect(isHypertensionCrisis(110, 70)).toBe(false)
+  })
+
+  it('boundary: exactly 180/120 is crisis', () => {
+    expect(isHypertensionCrisis(180, 120)).toBe(true)
+  })
+
+  it('boundary: 179/119 is NOT crisis (strictly above threshold)', () => {
+    expect(isHypertensionCrisis(179, 119)).toBe(false)
+  })
+})
+
+describe('CRISIS_INFO', () => {
+  it('has Indonesian label and warning recommendation', () => {
+    expect(CRISIS_INFO.label).toContain('Krisis')
+    expect(CRISIS_INFO.recommendation.toLowerCase()).toContain('igd')
+    expect(CRISIS_INFO.shortLabel).toBe('Krisis')
   })
 })

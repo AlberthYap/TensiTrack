@@ -78,7 +78,11 @@ export default async function AuthLayout({
 
         {/* Right: Form (always shown) */}
         <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-12">
-          <div className="w-full max-w-md mx-auto">
+          <div
+            id="main-content"
+            tabIndex={-1}
+            className="w-full max-w-md mx-auto outline-none"
+          >
             {/* Mobile logo */}
             <div className="lg:hidden flex justify-center mb-8">
               <div className="flex items-center gap-2">

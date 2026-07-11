@@ -10,6 +10,8 @@ import { MonthlyStatsCard } from '@/components/features/analytics/monthly-stats'
 import { Chart30Days } from '@/components/features/analytics/30-day-chart'
 import { CategoryDistributionChart } from '@/components/features/analytics/category-distribution-chart'
 import { TrendIndicator } from '@/components/features/analytics/trend-indicator'
+import { TrendInsights } from '@/components/features/analytics/trend-insights'
+import { generateTrendInsights, type Insight } from '@/lib/insights'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import Link from 'next/link'
@@ -29,6 +31,7 @@ export default async function AnalyticsPage() {
     items: [],
   }
   let trend: Awaited<ReturnType<typeof getTrendComparison>> | null = null
+  let insights: Insight[] = []
   let loadError = false
 
   try {
@@ -43,6 +46,7 @@ export default async function AnalyticsPage() {
     chartData = chartResult
     categoryData = categoryResult
     trend = trendResult
+    insights = trend ? generateTrendInsights(trend) : []
   } catch (error) {
     console.error('Failed to load analytics:', error)
     loadError = true
@@ -117,6 +121,8 @@ export default async function AnalyticsPage() {
           {trend && (
             <TrendIndicator comparison={trend} periodDays={30} />
           )}
+
+          {insights.length > 0 && <TrendInsights insights={insights} />}
 
           {/* 30-Day Chart */}
           <Card className="overflow-hidden animate-fade-in-up">

@@ -13,6 +13,44 @@ export const CATEGORY_LABELS: Record<BloodPressureCategory, string> = {
 }
 
 /**
+ * Threshold krisis hipertensi (AHA 2017 guideline).
+ * Sistolik ≥180 ATAU diastolik ≥120 → krisis hipertensi.
+ * Catatan: tanpa gejala = urgensi, dengan gejala = emergency.
+ * Untuk UX, kami tampilkan sebagai "krisis" tanpa membedakan subclass
+ * (pembeda gejala memerlukan input pengguna yang rawan误判).
+ */
+export const CRISIS_SYSTOLIC_THRESHOLD = 180
+export const CRISIS_DIASTOLIC_THRESHOLD = 120
+
+/**
+ * Deteksi krisis hipertensi — pembacaan yang butuh perhatian medis segera.
+ * Diturunkan di runtime (bukan field DB) sehingga tidak butuh migrasi
+ * terhadap data historis.
+ */
+export function isHypertensionCrisis(systolic: number, diastolic: number): boolean {
+  return systolic >= CRISIS_SYSTOLIC_THRESHOLD || diastolic >= CRISIS_DIASTOLIC_THRESHOLD
+}
+
+/**
+ * Informasi krisis untuk banner/alert UI.
+ * Dipakai ketika isHypertensionCrisis() true.
+ */
+export interface CrisisInfo {
+  label: string
+  shortLabel: string
+  description: string
+  recommendation: string
+}
+
+export const CRISIS_INFO: CrisisInfo = {
+  label: 'Krisis Hipertensi',
+  shortLabel: 'Krisis',
+  description: 'Pembacaan menunjukkan krisis hipertensi (≥180/≥120 mmHg).',
+  recommendation:
+    '⚠️ SEGERA ke IGD atau hubungi dokter. Tunggu 5 menit lalu ukur ulang untuk konfirmasi. Jangan menunda jika disertai gejala: sakit kepala hebat, nyeri dada, sesak napas, gangguan penglihatan, atau kelemahan tubuh.',
+}
+
+/**
  * Calculate blood pressure category based on AHA guidelines
  */
 export function calculateCategory(

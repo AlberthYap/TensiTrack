@@ -3,13 +3,15 @@ import Link from 'next/link'
 import { Activity, ArrowLeft, Calendar, Clock, Edit, FileText, Heart, MessageSquare, Trash2, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getBloodPressureRecord } from '@/app/actions/blood-pressure'
-import { calculateCategory, getCategoryInfo } from '@/lib/blood-pressure'
+import { calculateCategory, getCategoryInfo, isHypertensionCrisis } from '@/lib/blood-pressure'
 import { formatDateTime, formatRelativeTime } from '@/lib/date'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CategoryBadge } from '@/components/ui/category-badge'
+import { CrisisAlert } from '@/components/features/emergency/crisis-alert'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { DeleteRecordDialog } from '@/components/features/records/delete-record-dialog'
+import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,6 +43,7 @@ export default async function RecordDetailPage({ params }: RecordDetailPageProps
 
   const categoryInfo = getCategoryInfo(record.category)
   const category = calculateCategory(record.systolic, record.diastolic)
+  const isCrisis = isHypertensionCrisis(record.systolic, record.diastolic)
   const pulsePressure = record.systolic - record.diastolic
   const map = record.diastolic + (pulsePressure / 3) // Mean Arterial Pressure
 
@@ -98,20 +101,46 @@ export default async function RecordDetailPage({ params }: RecordDetailPageProps
         </div>
       </div>
 
+      {/* Crisis alert takes priority — show ABOVE the hero card */}
+      {isCrisis && (
+        <CrisisAlert
+          systolic={record.systolic}
+          diastolic={record.diastolic}
+          variant="banner"
+        />
+      )}
+
       {/* Hero BP Reading Card */}
-      <Card className="overflow-hidden relative animate-fade-in-up">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-indigo-500/10 to-purple-500/10 pointer-events-none" />
+      <Card className={cn('overflow-hidden relative animate-fade-in-up', isCrisis && 'ring-2 ring-red-600 border-red-600')}>
+        <div
+          className={cn(
+            'absolute inset-0 pointer-events-none',
+            isCrisis
+              ? 'bg-gradient-to-br from-red-500/15 via-red-500/10 to-orange-500/15'
+              : 'bg-gradient-to-br from-blue-500/10 via-indigo-500/10 to-purple-500/10'
+          )}
+        />
         <div className="absolute -top-12 -right-12 w-48 h-48 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl pointer-events-none" />
         <CardContent className="relative p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Pembacaan Tekanan Darah</p>
               <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-5xl sm:text-6xl font-bold text-gradient">
+                <span
+                  className={cn(
+                    'text-5xl sm:text-6xl font-bold',
+                    isCrisis ? 'text-red-700 dark:text-red-300' : 'text-gradient'
+                  )}
+                >
                   {record.systolic}
                 </span>
                 <span className="text-3xl sm:text-4xl text-gray-400 font-light">/</span>
-                <span className="text-5xl sm:text-6xl font-bold text-gradient-cool">
+                <span
+                  className={cn(
+                    'text-5xl sm:text-6xl font-bold',
+                    isCrisis ? 'text-red-700 dark:text-red-300' : 'text-gradient-cool'
+                  )}
+                >
                   {record.diastolic}
                 </span>
                 <span className="text-lg text-gray-500 dark:text-gray-400 ml-1">mmHg</span>

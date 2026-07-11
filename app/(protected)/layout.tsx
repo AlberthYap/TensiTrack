@@ -35,7 +35,11 @@ export default async function ProtectedLayout({
       <Header user={user} />
       <div className="flex relative">
         <Sidebar />
-        <main className="flex-1 p-4 md:p-6 lg:p-8 pb-24 md:pb-8">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 p-4 md:p-6 lg:p-8 pb-24 md:pb-8 outline-none"
+        >
           <div className="max-w-7xl mx-auto animate-fade-in">{children}</div>
         </main>
       </div>
