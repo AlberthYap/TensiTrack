@@ -22,9 +22,9 @@ import { calculateCategory } from '@/lib/blood-pressure'
 import { CategoryBadge } from '@/components/ui/category-badge'
 
 /**
- * `navigator.onLine` hanya menandakan koneksi ke network adapter, bukan
- * konektivitas internet sebenarnya. Tetap berguna untuk UX gate (disable
- * submit) sebelum request benar-benar gagal.
+ * `navigator.onLine` only reflects adapter-level connectivity, not actual
+ * internet reachability. Useful as a UX gate (disable submit) before the
+ * request would really fail.
  */
 function useOnlineStatus(): boolean {
   const [isOnline, setIsOnline] = useState<boolean>(
@@ -71,14 +71,14 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   const isOnline = useOnlineStatus()
   const isEdit = !!record
 
-  // Restoration toast: tampil & auto-hide 4s saat transisi offline → online.
+  // Restoration toast: appears & auto-hides after 4s on offline→online transition.
   const prevIsOnlineRef = useRef<boolean>(true)
   const [showReconnected, setShowReconnected] = useState(false)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Hanya dua transisi yang di-handle: offline→online (munculkan toast,
-  // start timer) dan online→offline saat toast masih tampil (drop toast
-  // supaya pesan "Koneksi pulih" tidak lagi akurat).
+  // Only two transitions handled: offline→online (show toast, start timer)
+  // and online→offline while toast is visible (drop it — the "reconnected"
+  // message is no longer accurate).
   const hideReconnected = () => {
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current)
@@ -109,8 +109,8 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
     }
   }, [])
 
-  // Geser UTC ISO string supaya datetime-local menampilkan waktu lokal,
-  // karena input type=datetime-local interpretasinya sebagai local TZ.
+  // Shift UTC ISO string so datetime-local shows local time, since
+  // <input type="datetime-local"> interprets values in local TZ.
   const getLocalDatetimeString = (dateStr?: string) => {
     const date = dateStr ? new Date(dateStr) : new Date()
     date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
@@ -149,7 +149,7 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   async function handleSubmit(formData: FormData) {
     setError(null)
 
-    // Local datetime → UTC ISO string sebelum kirim ke server.
+    // Local datetime → UTC ISO string before sending to server.
     const measuredAtStr = formData.get('measured_at') as string
     if (measuredAtStr) {
       const localDate = new Date(measuredAtStr)
@@ -185,8 +185,8 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   return (
     <>
       <form ref={formRef} action={handleSubmit} className="space-y-6">
-        {/* Restoration toast — role="status" aria-live="polite" supaya SR
-            mengumumkan tepat satu kali saat transisi offline → online. */}
+        {/* Restoration toast — role="status" aria-live="polite" so screen readers
+            announce the offline→online transition exactly once. */}
         {showReconnected && (
           <div
             role="status"
