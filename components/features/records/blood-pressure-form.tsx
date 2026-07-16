@@ -18,21 +18,18 @@ import {
   X,
 } from 'lucide-react'
 import { BloodPressureRecord } from '@/types/blood-pressure.types'
-import { calculateCategory, getCategoryInfo } from '@/lib/blood-pressure'
+import { calculateCategory } from '@/lib/blood-pressure'
 import { CategoryBadge } from '@/components/ui/category-badge'
 
 /**
- * useOnlineStatus — return true while the device reports a network connection.
- *
- * Catatan: `navigator.onLine` hanya menandakan koneksi ke network adapter,
- * bukan konektivitas internet sebenarnya. Tetap berguna untuk UX cepat
- * (disable tombol submit) sebelum request benar-benar gagal.
- *
- * Update realtime via window 'online' / 'offline' events — bracketed agar
- * aman dari React 18 StrictMode double-invoke di dev.
+ * `navigator.onLine` hanya menandakan koneksi ke network adapter, bukan
+ * konektivitas internet sebenarnya. Tetap berguna untuk UX gate (disable
+ * submit) sebelum request benar-benar gagal.
  */
 function useOnlineStatus(): boolean {
-  const [isOnline, setIsOnline] = useState<boolean>(true)
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  )
 
   useEffect(() => {
     if (typeof navigator !== 'undefined') {
@@ -66,32 +63,60 @@ interface FormState {
   notes: string
 }
 
-const INITIAL_STATE: FormState = {
-  systolic: '',
-  diastolic: '',
-  pulse: '',
-  measured_at: '',
-  notes: '',
-}
-
 export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPressureFormProps) {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [showDiscard, setShowDiscard] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
   const isOnline = useOnlineStatus()
   const isEdit = !!record
 
-  // Convert UTC string to local datetime string for the input
+  // Restoration toast: tampil & auto-hide 4s saat transisi offline → online.
+  const prevIsOnlineRef = useRef<boolean>(true)
+  const [showReconnected, setShowReconnected] = useState(false)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Hanya dua transisi yang di-handle: offline→online (munculkan toast,
+  // start timer) dan online→offline saat toast masih tampil (drop toast
+  // supaya pesan "Koneksi pulih" tidak lagi akurat).
+  const hideReconnected = () => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current)
+      reconnectTimerRef.current = null
+    }
+    setShowReconnected(false)
+  }
+
+  useEffect(() => {
+    const wasOffline = prevIsOnlineRef.current === false
+    const isNowOnline = isOnline === true
+
+    if (wasOffline && isNowOnline) {
+      setShowReconnected(true)
+      reconnectTimerRef.current = setTimeout(hideReconnected, 4000)
+    } else if (!wasOffline && !isNowOnline) {
+      hideReconnected()
+    }
+
+    prevIsOnlineRef.current = isOnline
+  }, [isOnline])
+
+  useEffect(() => {
+    return () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Geser UTC ISO string supaya datetime-local menampilkan waktu lokal,
+  // karena input type=datetime-local interpretasinya sebagai local TZ.
   const getLocalDatetimeString = (dateStr?: string) => {
     const date = dateStr ? new Date(dateStr) : new Date()
     date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
     return date.toISOString().slice(0, 16)
   }
 
-  // Build initial form values once (lazy init) so we can use them
-  // for both the form state and dirty-detection baseline
   const buildInitialValues = (): FormState => ({
     systolic: record?.systolic?.toString() || '',
     diastolic: record?.diastolic?.toString() || '',
@@ -100,13 +125,9 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
     notes: record?.notes || '',
   })
 
-  // Track initial form values for dirty detection (snapshot at mount)
   const initialValues = useRef<FormState>(buildInitialValues())
-
-  // Track form changes for discard confirmation
   const [formValues, setFormValues] = useState<FormState>(buildInitialValues())
 
-  // Check if form is dirty (has changes)
   const isDirty = () => {
     return (
       formValues.systolic !== initialValues.current.systolic ||
@@ -117,7 +138,6 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
     )
   }
 
-  // Live preview of category
   const previewCategory = (() => {
     const sys = parseInt(formValues.systolic)
     const dia = parseInt(formValues.diastolic)
@@ -129,7 +149,7 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   async function handleSubmit(formData: FormData) {
     setError(null)
 
-    // Convert local datetime to UTC ISO string before sending to server
+    // Local datetime → UTC ISO string sebelum kirim ke server.
     const measuredAtStr = formData.get('measured_at') as string
     if (measuredAtStr) {
       const localDate = new Date(measuredAtStr)
@@ -165,8 +185,26 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   return (
     <>
       <form ref={formRef} action={handleSubmit} className="space-y-6">
-        {/* Offline warning banner — appears when navigator.onLine === false.
-            role="status" announces the message politely to screen readers. */}
+        {/* Restoration toast — role="status" aria-live="polite" supaya SR
+            mengumumkan tepat satu kali saat transisi offline → online. */}
+        {showReconnected && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3 flex items-start gap-2 animate-fade-in-up"
+          >
+            <CheckCircle2
+              className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5"
+              aria-hidden="true"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                Koneksi pulih, silakan simpan catatan
+              </p>
+            </div>
+          </div>
+        )}
+
         {!isOnline && (
           <div
             role="status"
@@ -204,7 +242,6 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Systolic */}
           <div className="space-y-2">
             <Label htmlFor="systolic">
               Systolic (mmHg) <span className="text-red-500">*</span>
@@ -225,7 +262,6 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
             </p>
           </div>
 
-          {/* Diastolic */}
           <div className="space-y-2">
             <Label htmlFor="diastolic">
               Diastolic (mmHg) <span className="text-red-500">*</span>
@@ -247,7 +283,6 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
           </div>
         </div>
 
-        {/* Live Preview */}
         {previewCategory && (
           <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 animate-fade-in">
             <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
@@ -256,7 +291,6 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
           </div>
         )}
 
-        {/* Pulse */}
         <div className="space-y-2">
           <Label htmlFor="pulse">Denyut Nadi (bpm)</Label>
           <Input
@@ -274,7 +308,6 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
           </p>
         </div>
 
-        {/* Measured At */}
         <div className="space-y-2">
           <Label htmlFor="measured_at">
             Waktu Pengukuran <span className="text-red-500">*</span>
@@ -289,7 +322,6 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
           />
         </div>
 
-        {/* Notes */}
         <div className="space-y-2">
           <Label htmlFor="notes">Catatan</Label>
           <Textarea
@@ -328,7 +360,6 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
         </div>
       </form>
 
-      {/* Discard Confirmation Dialog */}
       {showDiscard && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
