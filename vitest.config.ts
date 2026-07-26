@@ -60,4 +60,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './'),
     },
   },
+  // Use the automatic JSX runtime so test .tsx files don't need to import React.
+  esbuild: {
+    jsx: 'automatic',
+  },
 })

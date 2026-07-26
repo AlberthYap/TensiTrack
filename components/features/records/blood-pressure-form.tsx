@@ -71,14 +71,14 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   const isOnline = useOnlineStatus()
   const isEdit = !!record
 
-  // Restoration toast: appears & auto-hides after 4s on offline→online transition.
+  // Surface the toast on reconnect: the user may have abandoned an
+  // entry mid-fill while offline; the toast nudges them to re-submit.
   const prevIsOnlineRef = useRef<boolean>(true)
   const [showReconnected, setShowReconnected] = useState(false)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Only two transitions handled: offline→online (show toast, start timer)
-  // and online→offline while toast is visible (drop it — the "reconnected"
-  // message is no longer accurate).
+  // Drop the toast on online→offline: the "reconnected" message would
+  // lie once the device disconnects again, so it must not linger.
   const hideReconnected = () => {
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current)
@@ -149,7 +149,8 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   async function handleSubmit(formData: FormData) {
     setError(null)
 
-    // Local datetime → UTC ISO string before sending to server.
+    // Server stores timestamps in UTC; the input gave us local time
+    // (datetime-local = browser TZ), so normalize before submit.
     const measuredAtStr = formData.get('measured_at') as string
     if (measuredAtStr) {
       const localDate = new Date(measuredAtStr)

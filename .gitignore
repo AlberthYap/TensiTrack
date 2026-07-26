@@ -100,3 +100,6 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.agents/
+docs/
