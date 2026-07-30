@@ -288,6 +288,97 @@ export interface BloodPressureRecordDetail {
   deleted_at: string | null
 }
 
+export interface BatchImportResult {
+  success: number
+  failed: number
+  errors: Array<{ row: number; message: string }>
+}
+
+/**
+ * Batch import — inserts many records in a single Supabase call.
+ * Unlike `addBloodPressureRecord`, this does NOT redirect, so it is
+ * safe to call from non-form contexts (e.g. CSV import dialog).
+ */
+export async function batchImportBloodPressureRecords(
+  records: Array<{
+    systolic: number
+    diastolic: number
+    pulse: number | null
+    measured_at: string
+    notes?: string | null
+  }>
+): Promise<BatchImportResult> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { success: 0, failed: records.length, errors: [{ row: 0, message: 'Unauthorized' }] }
+  }
+
+  const validRows: Array<{
+    user_id: string
+    systolic: number
+    diastolic: number
+    pulse: number | null
+    category: string
+    notes: string | null
+    measured_at: string
+  }> = []
+
+  const errors: Array<{ row: number; message: string }> = []
+
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i]
+    const validatedFields = bloodPressureSchema.safeParse({
+      systolic: r.systolic,
+      diastolic: r.diastolic,
+      pulse: r.pulse,
+      notes: r.notes || null,
+      measured_at: r.measured_at,
+    })
+
+    if (!validatedFields.success) {
+      errors.push({ row: i + 1, message: validatedFields.error.issues[0].message })
+      continue
+    }
+
+    const { systolic, diastolic, pulse, notes, measured_at } = validatedFields.data
+    const category = calculateCategory(systolic, diastolic)
+
+    validRows.push({
+      user_id: user.id,
+      systolic,
+      diastolic,
+      pulse: pulse ?? null,
+      category,
+      notes: notes ?? null,
+      measured_at,
+    })
+  }
+
+  if (validRows.length === 0) {
+    return { success: 0, failed: records.length, errors }
+  }
+
+  const { error } = await supabase
+    .from('blood_pressure_records')
+    .insert(validRows)
+
+  if (error) {
+    return { success: 0, failed: records.length, errors: [{ row: 0, message: error.message }] }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/records')
+  revalidatePath('/analytics')
+
+  return {
+    success: validRows.length,
+    failed: records.length - validRows.length,
+    errors,
+  }
+}
+
 export async function getBloodPressureRecord(
   id: string
 ): Promise<{ data: BloodPressureRecordDetail | null; error: string | null }> {

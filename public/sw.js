@@ -58,6 +58,22 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+// Listen for cache-invalidation messages from the client.
+// When the user logs out, the app sends { action: 'CLEAR_CACHE' }
+// to prevent stale authenticated HTML from being served offline.
+self.addEventListener('message', (event) => {
+  if (event.data?.action === 'CLEAR_CACHE') {
+    event.waitUntil(
+      caches.delete(CACHE_VERSION).then(() => {
+        console.log('[PWA] Cache cleared on logout')
+        if (event.ports?.[0]) {
+          event.ports[0].postMessage({ success: true })
+        }
+      })
+    )
+  }
+})
+
 function isCacheableAsset(url) {
   // Same-origin static assets only. Skip Next.js RSC / JSON payloads and
   // any auth/data endpoints.
@@ -91,9 +107,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          // Refresh shell cache with the latest successful navigation HTML
-          // for the app shell only (don't cache protected routes).
-          if (res.ok && url.pathname === '/') {
+          // Cache key pages for offline access. Protected routes
+          // (records/new, dashboard) are safe to cache because the
+          // entire cache is purged on logout via the CLEAR_CACHE message.
+          if (res.ok && (url.pathname === '/' || url.pathname === '/records/new' || url.pathname === '/dashboard')) {
             const copy = res.clone()
             caches.open(CACHE_VERSION).then((c) => c.put(req, copy))
           }

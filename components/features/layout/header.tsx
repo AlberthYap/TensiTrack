@@ -28,6 +28,11 @@ export function Header({ user }: HeaderProps) {
 
   function handleLogout() {
     startTransition(async () => {
+      // Clear the SW cache proactively so no stale authenticated
+      // HTML is served from the offline cache after logout.
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ action: 'CLEAR_CACHE' })
+      }
       await logout()
     })
   }

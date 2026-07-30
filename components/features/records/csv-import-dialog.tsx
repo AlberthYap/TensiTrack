@@ -4,9 +4,9 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Upload, FileText, CheckCircle2, AlertCircle, X, Download, Loader2 } from 'lucide-react'
+import { Upload, FileText, CheckCircle2, AlertCircle, X, Download, Loader2, WifiOff } from 'lucide-react'
 import { CsvImportResult, parseCsvImport, MAX_IMPORT_ROWS } from '@/lib/csv-import'
-import { addBloodPressureRecord } from '@/app/actions/blood-pressure'
+import { batchImportBloodPressureRecords } from '@/app/actions/blood-pressure'
 import { CATEGORY_LABELS, calculateCategory } from '@/lib/blood-pressure'
 import { CategoryBadge } from '@/components/ui/category-badge'
 
@@ -26,10 +26,6 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
   const [importResult, setImportResult] = useState<{
     success: number
     failed: number
-  } | null>(null)
-  const [importProgress, setImportProgress] = useState<{
-    done: number
-    total: number
   } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -88,46 +84,38 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
 
   async function handleImport() {
     if (!parseResult || parseResult.validRows.length === 0) return
+
+    // Guard against offline import — all calls would fail anyway.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setImportResult({
+        success: 0,
+        failed: parseResult.validRows.length,
+      })
+      return
+    }
+
     setIsImporting(true)
-    let success = 0
-    let failed = 0
 
-    const total = parseResult.validRows.length
-    const updateProgress = (done: number) => {
-      setImportProgress({ done, total })
-    }
-    updateProgress(0)
+    const rows = parseResult.validRows.map((row) => ({
+      systolic: row.systolic,
+      diastolic: row.diastolic,
+      pulse: row.pulse ?? null,
+      measured_at: row.measured_at,
+      notes: row.notes || null,
+    }))
 
-    for (let i = 0; i < parseResult.validRows.length; i++) {
-      const row = parseResult.validRows[i]
-      try {
-        const formData = new FormData()
-        formData.append('systolic', String(row.systolic))
-        formData.append('diastolic', String(row.diastolic))
-        if (row.pulse !== null) formData.append('pulse', String(row.pulse))
-        formData.append('measured_at', row.measured_at)
-        if (row.notes) formData.append('notes', row.notes)
-        const result = await addBloodPressureRecord(formData)
-        if (result.error) {
-          failed++
-        } else {
-          success++
-        }
-      } catch {
-        failed++
-      }
-      updateProgress(i + 1)
+    let successCount = 0
+    try {
+      const result = await batchImportBloodPressureRecords(rows)
+      setImportResult({ success: result.success, failed: result.failed })
+      successCount = result.success
+    } catch {
+      setImportResult({ success: 0, failed: rows.length })
     }
 
-    setImportResult({ success, failed })
     setIsImporting(false)
-    setImportProgress(null)
 
-    // Merefresh data di halaman records & dashboard setelah import berhasil.
-    // Server action `addBloodPressureRecord` sudah memanggil
-    // `revalidatePath('/dashboard')` dan `revalidatePath('/records')`, tapi
-    // router.refresh() memastikan view di-mount component ini ikut update.
-    if (success > 0) {
+    if (successCount > 0) {
       router.refresh()
     }
   }
@@ -325,9 +313,21 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
 
           {/* Import result */}
           {importResult && (
-            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900">
+            <div className={`p-4 rounded-lg border ${
+              importResult.failed === 0
+                ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900'
+                : importResult.success === 0
+                  ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900'
+                  : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900'
+            }`}>
               <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                {importResult.failed === 0 ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : importResult.success === 0 ? (
+                  <AlertCircle className="w-4 h-4 text-red-600" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                )}
                 Import selesai
               </p>
               <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
@@ -342,30 +342,36 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
               {importResult ? 'Selesai' : 'Batal'}
             </Button>
             {parseResult && parseResult.validRows.length > 0 && !importResult && (
-              <Button
-                onClick={handleImport}
-                disabled={isImporting}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {isImporting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {importProgress
-                      ? `Mengimpor ${importProgress.done}/${importProgress.total}...`
-                      : 'Mengimpor...'}
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Import {parseResult.validRows.length} Baris
-                    {parseResult.truncated && (
-                      <span className="ml-1 text-xs opacity-90">
-                        (dari {parseResult.totalRows})
-                      </span>
-                    )}
-                  </>
+              <div className="flex items-center gap-2">
+                {typeof navigator !== 'undefined' && !navigator.onLine && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <WifiOff className="w-3.5 h-3.5" />
+                    Tidak ada koneksi
+                  </span>
                 )}
-              </Button>
+                <Button
+                  onClick={handleImport}
+                  disabled={isImporting}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isImporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengimpor...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Import {parseResult.validRows.length} Baris
+                      {parseResult.truncated && (
+                        <span className="ml-1 text-xs opacity-90">
+                          (dari {parseResult.totalRows})
+                        </span>
+                      )}
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>

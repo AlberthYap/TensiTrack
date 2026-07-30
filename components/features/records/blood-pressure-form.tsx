@@ -21,6 +21,8 @@ import { BloodPressureRecord } from '@/types/blood-pressure.types'
 import { calculateCategory } from '@/lib/blood-pressure'
 import { CategoryBadge } from '@/components/ui/category-badge'
 
+const OFFLINE_FORM_KEY = 'tensi-offline-form'
+
 /**
  * `navigator.onLine` only reflects adapter-level connectivity, not actual
  * internet reachability. Useful as a UX gate (disable submit) before the
@@ -73,8 +75,12 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
 
   // Surface the toast on reconnect: the user may have abandoned an
   // entry mid-fill while offline; the toast nudges them to re-submit.
+  // If offline form data was queued, we auto-submit it immediately.
   const prevIsOnlineRef = useRef<boolean>(true)
   const [showReconnected, setShowReconnected] = useState(false)
+  const [isAutoSubmitting, setIsAutoSubmitting] = useState(false)
+  const [autoSubmitFailed, setAutoSubmitFailed] = useState(false)
+  const offlineQueuedRef = useRef(false)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Drop the toast on online→offline: the "reconnected" message would
@@ -85,6 +91,8 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
       reconnectTimerRef.current = null
     }
     setShowReconnected(false)
+    setIsAutoSubmitting(false)
+    setAutoSubmitFailed(false)
   }
 
   useEffect(() => {
@@ -92,10 +100,19 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
     const isNowOnline = isOnline === true
 
     if (wasOffline && isNowOnline) {
-      setShowReconnected(true)
-      reconnectTimerRef.current = setTimeout(hideReconnected, 4000)
+      // Auto-submit queued offline form data if present.
+      if (!isEdit && offlineQueuedRef.current && isDirty()) {
+        setIsAutoSubmitting(true)
+        setAutoSubmitFailed(false)
+        setShowReconnected(true)
+        submitOfflineForm()
+      } else {
+        setShowReconnected(true)
+        reconnectTimerRef.current = setTimeout(hideReconnected, 4000)
+      }
     } else if (!wasOffline && !isNowOnline) {
       hideReconnected()
+      setAutoSubmitFailed(false)
     }
 
     prevIsOnlineRef.current = isOnline
@@ -126,7 +143,28 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   })
 
   const initialValues = useRef<FormState>(buildInitialValues())
-  const [formValues, setFormValues] = useState<FormState>(buildInitialValues())
+
+  // Restore saved form data from localStorage (new record only).
+  // This preserves user input when the browser tab was closed while offline.
+  const [formValues, setFormValues] = useState<FormState>(() => {
+    if (isEdit) return buildInitialValues()
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(OFFLINE_FORM_KEY)
+        if (saved) {
+          const parsed = JSON.parse(saved) as FormState
+          // Basic sanity check — if offline-form saved data looks like
+          // something the user intended, restore it.
+          if (parsed.systolic || parsed.diastolic || parsed.measured_at) {
+            return parsed
+          }
+        }
+      }
+    } catch {
+      // localStorage may throw in some environments (private browsing, quota).
+    }
+    return buildInitialValues()
+  })
 
   const isDirty = () => {
     return (
@@ -136,6 +174,89 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
       formValues.measured_at !== initialValues.current.measured_at ||
       formValues.notes !== initialValues.current.notes
     )
+  }
+
+  // Persist form values to localStorage when offline so the user's
+  // partial entry survives browser tab close / crash.
+  const saveOfflineForm = () => {
+    if (isEdit) return
+    if (isOnline) return
+    if (!isDirty()) return
+    try {
+      localStorage.setItem(OFFLINE_FORM_KEY, JSON.stringify(formValues))
+      offlineQueuedRef.current = true
+    } catch {
+      // Quota exceeded or private browsing — silently skip.
+    }
+  }
+
+  useEffect(() => {
+    saveOfflineForm()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formValues, isOnline, isEdit])
+
+  // Also save when transitioning to offline state, in case the user
+  // filled the form while online but then loses connectivity.
+  useEffect(() => {
+    if (isEdit) return
+    const handleOffline = () => {
+      if (isDirty()) {
+        try {
+          localStorage.setItem(OFFLINE_FORM_KEY, JSON.stringify(formValues))
+          offlineQueuedRef.current = true
+        } catch { /* ignore */ }
+      }
+    }
+    window.addEventListener('offline', handleOffline)
+    return () => window.removeEventListener('offline', handleOffline)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, formValues])
+
+  // Clear saved offline form data on successful submit.
+  const clearOfflineForm = () => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(OFFLINE_FORM_KEY)
+      }
+    } catch { /* ignore */ }
+    offlineQueuedRef.current = false
+  }
+
+  /**
+   * Auto-submit queued offline form data when connectivity returns.
+   * Builds FormData from the current (or restored) formValues and
+   * calls the same server action the manual submit uses.
+   */
+  const submitOfflineForm = async () => {
+    try {
+      const fd = new FormData()
+      fd.append('systolic', formValues.systolic)
+      fd.append('diastolic', formValues.diastolic)
+      if (formValues.pulse) fd.append('pulse', formValues.pulse)
+      fd.append('notes', formValues.notes)
+
+      const measuredAtStr = formValues.measured_at
+      if (measuredAtStr) {
+        const localDate = new Date(measuredAtStr)
+        fd.set('measured_at', localDate.toISOString())
+      } else {
+        fd.set('measured_at', new Date().toISOString())
+      }
+
+      const result = await addBloodPressureRecord(fd)
+
+      if (result?.error) {
+        setAutoSubmitFailed(true)
+        setIsAutoSubmitting(false)
+        reconnectTimerRef.current = setTimeout(hideReconnected, 6000)
+      }
+      // On success: addBloodPressureRecord calls redirect('/dashboard'),
+      // so the component unmounts — no need to update local state.
+    } catch {
+      setAutoSubmitFailed(true)
+      setIsAutoSubmitting(false)
+      reconnectTimerRef.current = setTimeout(hideReconnected, 6000)
+    }
   }
 
   const previewCategory = (() => {
@@ -163,6 +284,8 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
 
     if (result?.error) {
       setError(result.error)
+    } else {
+      clearOfflineForm()
     }
   }
 
@@ -176,6 +299,7 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
 
   const handleConfirmDiscard = () => {
     setShowDiscard(false)
+    clearOfflineForm()
     router.push(redirectPath)
   }
 
@@ -186,9 +310,54 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
   return (
     <>
       <form ref={formRef} action={handleSubmit} className="space-y-6">
-        {/* Restoration toast — role="status" aria-live="polite" so screen readers
-            announce the offline→online transition exactly once. */}
-        {showReconnected && (
+        {/* Auto-submit toast — shown when offline-queued form data
+            is being (or failed to be) submitted automatically. */}
+        {(isAutoSubmitting || autoSubmitFailed) && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={`border rounded-lg p-3 flex items-start gap-2 animate-fade-in-up ${
+              autoSubmitFailed
+                ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800'
+                : 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'
+            }`}
+          >
+            {isAutoSubmitting ? (
+              <Loader2
+                className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5 animate-spin"
+                aria-hidden="true"
+              />
+            ) : (
+              <AlertCircle
+                className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
+            )}
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${
+                autoSubmitFailed
+                  ? 'text-red-700 dark:text-red-300'
+                  : 'text-blue-700 dark:text-blue-300'
+              }`}>
+                {isAutoSubmitting
+                  ? 'Mengirim catatan tersimpan...'
+                  : 'Gagal mengirim otomatis'}
+              </p>
+              <p className={`text-sm mt-0.5 ${
+                autoSubmitFailed
+                  ? 'text-red-600/80 dark:text-red-400/80'
+                  : 'text-blue-600/80 dark:text-blue-400/80'
+              }`}>
+                {isAutoSubmitting
+                  ? 'Mengirim data yang disimpan saat offline...'
+                  : 'Silakan klik Simpan untuk mencoba lagi.'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Restoration toast — shown on simple reconnect (no queued data). */}
+        {showReconnected && !isAutoSubmitting && !autoSubmitFailed && (
           <div
             role="status"
             aria-live="polite"
@@ -348,7 +517,7 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
           <SubmitButton
             isEdit={isEdit}
             isDirty={isDirty()}
-            isOffline={!isOnline}
+            isOffline={!isOnline || isAutoSubmitting}
           />
           <Button
             type="button"

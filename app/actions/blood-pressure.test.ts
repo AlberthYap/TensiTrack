@@ -31,7 +31,7 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-import { addBloodPressureRecord, getBloodPressureRecords } from '@/app/actions/blood-pressure'
+import { addBloodPressureRecord, getBloodPressureRecords, batchImportBloodPressureRecords } from '@/app/actions/blood-pressure'
 
 describe('addBloodPressureRecord', () => {
   beforeEach(() => {
@@ -157,5 +157,111 @@ describe('getBloodPressureRecords', () => {
 
     const result = await getBloodPressureRecords()
     expect(result).toEqual([])
+  })
+})
+
+describe('batchImportBloodPressureRecords', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns error when user is not authenticated', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const result = await batchImportBloodPressureRecords([
+      { systolic: 120, diastolic: 80, pulse: null, measured_at: new Date().toISOString() },
+    ])
+    expect(result.success).toBe(0)
+    expect(result.failed).toBe(1)
+    expect(result.errors[0].message).toBe('Unauthorized')
+  })
+
+  it('handles empty input array', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    const result = await batchImportBloodPressureRecords([])
+    expect(result.success).toBe(0)
+    expect(result.failed).toBe(0)
+  })
+
+  it('returns per-row validation errors for invalid records', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockInsert.mockResolvedValue({ error: null })
+    mockFrom.mockReturnValue({ insert: mockInsert })
+
+    const result = await batchImportBloodPressureRecords([
+      { systolic: 999, diastolic: 80, pulse: null, measured_at: new Date().toISOString() },
+      { systolic: 120, diastolic: 200, pulse: null, measured_at: new Date().toISOString() },
+    ])
+
+    expect(result.success).toBe(0)
+    expect(result.failed).toBe(2)
+    expect(result.errors.length).toBe(2)
+    expect(result.errors[0].message).toMatch(/Systolic/)
+  })
+
+  it('inserts valid records with correct user_id and categories (regression: batch import)', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-456' } } })
+    mockInsert.mockResolvedValue({ error: null })
+    mockFrom.mockReturnValue({ insert: mockInsert })
+
+    const now = new Date().toISOString()
+    const result = await batchImportBloodPressureRecords([
+      { systolic: 110, diastolic: 70, pulse: 72, measured_at: now },
+      { systolic: 135, diastolic: 85, pulse: 80, measured_at: now },
+    ])
+
+    expect(result.success).toBe(2)
+    expect(result.failed).toBe(0)
+    expect(mockInsert).toHaveBeenCalledTimes(1)
+    const rows = mockInsert.mock.calls[0][0]
+    expect(rows).toHaveLength(2)
+    expect(rows[0].user_id).toBe('user-456')
+    expect(rows[0].category).toBe('normal')
+    expect(rows[1].user_id).toBe('user-456')
+    expect(rows[1].category).toBe('hypertension_stage_1')
+  })
+
+  it('mixes valid and invalid rows with correct success/failed counts', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockInsert.mockResolvedValue({ error: null })
+    mockFrom.mockReturnValue({ insert: mockInsert })
+
+    const result = await batchImportBloodPressureRecords([
+      { systolic: 120, diastolic: 80, pulse: null, measured_at: new Date().toISOString() },
+      { systolic: 999, diastolic: 80, pulse: null, measured_at: new Date().toISOString() },
+      { systolic: 110, diastolic: 70, pulse: 72, measured_at: new Date().toISOString() },
+    ])
+
+    expect(result.success).toBe(2)
+    expect(result.failed).toBe(1) // only the 999 systolic row
+    expect(result.errors.length).toBe(1)
+    expect(result.errors[0].row).toBe(2)
+  })
+
+  it('returns all-failed when Supabase insert errors', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockInsert.mockResolvedValue({ error: { message: 'Connection refused' } })
+    mockFrom.mockReturnValue({ insert: mockInsert })
+
+    const result = await batchImportBloodPressureRecords([
+      { systolic: 120, diastolic: 80, pulse: null, measured_at: new Date().toISOString() },
+    ])
+
+    expect(result.success).toBe(0)
+    expect(result.failed).toBe(1)
+    expect(result.errors[0].message).toBe('Connection refused')
+  })
+
+  it('does NOT call redirect (regression: batch import must not redirect)', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockInsert.mockResolvedValue({ error: null })
+    mockFrom.mockReturnValue({ insert: mockInsert })
+
+    // Should not throw a redirect error
+    const result = await batchImportBloodPressureRecords([
+      { systolic: 120, diastolic: 80, pulse: null, measured_at: new Date().toISOString() },
+    ])
+
+    expect(result.success).toBe(1)
+    // If redirect was called, an error would have been thrown here
   })
 })
