@@ -330,8 +330,12 @@ REVOKE EXECUTE ON FUNCTION public.cleanup_stale_rate_limits() FROM anon;
 GRANT EXECUTE ON FUNCTION public.cleanup_stale_rate_limits() TO authenticated;
 
 -- --------------------------------------------------------------------------
--- 8. Seed sample data for demo account (14 days of realistic BP readings)
+-- 8. Seed sample data for demo account (fills any missing days in last 7)
 -- --------------------------------------------------------------------------
+-- Ensures the demo dashboard always shows a full 7-day chart with realistic
+-- BP readings. After cleanup removes data >24h, this function fills in any
+-- gaps so the demo always has a rich dataset for visitors to explore.
+-- =============================================================================
 CREATE OR REPLACE FUNCTION public.seed_demo_sample_data()
 RETURNS void
 LANGUAGE plpgsql
@@ -341,12 +345,13 @@ AS $$
 DECLARE
   demo_user_id UUID;
   demo_email CONSTANT TEXT := 'guest@tensitrack.com';
-  v_count INT;
   v_day INT;
   v_sys INT;
   v_dia INT;
   v_cat TEXT;
   v_ts TIMESTAMPTZ;
+  v_date DATE;
+  v_exists BOOLEAN;
 BEGIN
   SELECT id INTO demo_user_id
   FROM public.profiles
@@ -357,40 +362,43 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Only seed when the account is completely empty
-  SELECT COUNT(*) INTO v_count
-  FROM public.blood_pressure_records
-  WHERE user_id = demo_user_id;
+  -- Ensure the last 7 days each have at least one reading.
+  -- For any missing day, insert a random realistic reading.
+  FOR v_day IN 0..6 LOOP
+    v_date := CURRENT_DATE - v_day;
 
-  IF v_count > 0 THEN
-    RETURN;
-  END IF;
+    SELECT EXISTS(
+      SELECT 1 FROM public.blood_pressure_records
+      WHERE user_id = demo_user_id
+        AND measured_at::DATE = v_date
+    ) INTO v_exists;
 
-  -- Insert 14 days of sample data (alternating morning/evening)
-  FOR v_day IN 0..13 LOOP
-    IF v_day % 2 = 0 THEN
-      v_ts := (CURRENT_DATE - (v_day || ' days')::INTERVAL) + TIME '07:00';
-    ELSE
-      v_ts := (CURRENT_DATE - (v_day || ' days')::INTERVAL) + TIME '19:00';
+    IF NOT v_exists THEN
+      -- Alternate morning/evening timestamps
+      IF v_day % 2 = 0 THEN
+        v_ts := v_date + TIME '08:00';
+      ELSE
+        v_ts := v_date + TIME '19:00';
+      END IF;
+
+      v_sys := 110 + (random() * 30)::INT;
+      v_dia := 70  + (random() * 20)::INT;
+
+      IF v_sys >= 140 OR v_dia >= 90 THEN
+        v_cat := 'hypertension_stage_2';
+      ELSIF v_sys >= 130 OR v_dia >= 80 THEN
+        v_cat := 'hypertension_stage_1';
+      ELSIF v_sys >= 120 AND v_dia < 80 THEN
+        v_cat := 'elevated';
+      ELSE
+        v_cat := 'normal';
+      END IF;
+
+      INSERT INTO public.blood_pressure_records
+        (user_id, systolic, diastolic, category, measured_at)
+      VALUES
+        (demo_user_id, v_sys, v_dia, v_cat, v_ts);
     END IF;
-
-    v_sys := 110 + (random() * 30)::INT;
-    v_dia := 70  + (random() * 20)::INT;
-
-    IF v_sys >= 140 OR v_dia >= 90 THEN
-      v_cat := 'hypertension_stage_2';
-    ELSIF v_sys >= 130 OR v_dia >= 80 THEN
-      v_cat := 'hypertension_stage_1';
-    ELSIF v_sys >= 120 AND v_dia < 80 THEN
-      v_cat := 'elevated';
-    ELSE
-      v_cat := 'normal';
-    END IF;
-
-    INSERT INTO public.blood_pressure_records
-      (user_id, systolic, diastolic, category, measured_at)
-    VALUES
-      (demo_user_id, v_sys, v_dia, v_cat, v_ts);
   END LOOP;
 END;
 $$;
