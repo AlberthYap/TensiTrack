@@ -218,6 +218,7 @@ export interface GetRecordsOptions {
   pageSize?: number
   startDate?: string
   endDate?: string
+  category?: string
 }
 
 export interface PaginatedRecords {
@@ -272,6 +273,10 @@ export async function getBloodPressureRecordsPaginated(
     const end = new Date(options.endDate)
     end.setHours(23, 59, 59, 999)
     query = query.lte('measured_at', end.toISOString())
+  }
+
+  if (options.category && options.category !== 'all') {
+    query = query.eq('category', options.category)
   }
 
   const { data, error, count } = await query

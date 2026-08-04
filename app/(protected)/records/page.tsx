@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { FileText, Sparkles, Upload } from 'lucide-react'
+import { FileText, Printer, Sparkles, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
@@ -17,6 +17,7 @@ interface RecordsPageProps {
     pageSize?: string
     startDate?: string
     endDate?: string
+    category?: string
   }
 }
 
@@ -33,13 +34,15 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
   const pageSize = Math.max(1, Math.min(100, Number(searchParams.pageSize) || 10))
   const startDate = searchParams.startDate || ''
   const endDate = searchParams.endDate || ''
+  const category = searchParams.category || ''
 
-  // Server-side paginated fetch with optional date filter
+  // Server-side paginated fetch with optional date/category filter
   const { data: result, error } = await getBloodPressureRecordsPaginated({
     page,
     pageSize,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    category: category || undefined,
   })
 
   const recordsList = result?.data ?? []
@@ -74,6 +77,12 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
           <CsvImportDialog />
           <ShareDialog />
+          <Link href="/records/print">
+            <button className="whitespace-nowrap inline-flex items-center justify-center rounded-md text-sm font-medium transition-all h-10 px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+              <Printer className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Cetak</span>
+            </button>
+          </Link>
           <Link href="/records/new">
             <button className="whitespace-nowrap inline-flex items-center justify-center rounded-md text-sm font-medium transition-all h-10 px-4 py-2 bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0">
               <FileText className="w-4 h-4 mr-2" />
@@ -95,17 +104,17 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
             </p>
           </CardContent>
         </Card>
-      ) : (
-        <RecordsList
-          records={recordsList}
-          total={total}
-          page={page}
-          pageSize={pageSize}
-          totalPages={totalPages}
-          startDate={startDate}
-          endDate={endDate}
-          basePath="/records"
-        />
+      ) : (          <RecordsList
+            records={recordsList}
+            total={total}
+            page={page}
+            pageSize={pageSize}
+            totalPages={totalPages}
+            startDate={startDate}
+            endDate={endDate}
+            category={category}
+            basePath="/records"
+          />
       )}
     </div>
   )

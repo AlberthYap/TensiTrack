@@ -214,6 +214,7 @@ export default async function SharePage({ params, searchParams }: SharePageProps
               totalPages={totalPages}
               startDate={startDate}
               endDate={endDate}
+              category=""
               basePath={`/share/${params.token}`}
               readOnly
             />

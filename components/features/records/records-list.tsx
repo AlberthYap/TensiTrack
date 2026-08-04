@@ -43,6 +43,15 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { CrisisAlert } from '@/components/features/emergency/crisis-alert'
 import { cn } from '@/lib/utils'
 
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'Semua Kategori' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'elevated', label: 'Meningkat' },
+  { value: 'hypertension_stage_1', label: 'Hipertensi Tahap 1' },
+  { value: 'hypertension_stage_2', label: 'Hipertensi Tahap 2' },
+  { value: 'low', label: 'Rendah' },
+] as const
+
 interface RecordsListProps {
   records: BloodPressureRecord[]
   total: number
@@ -51,6 +60,7 @@ interface RecordsListProps {
   totalPages: number
   startDate: string
   endDate: string
+  category: string
   basePath: string
   readOnly?: boolean
 }
@@ -65,6 +75,7 @@ export function RecordsList({
   totalPages,
   startDate,
   endDate,
+  category,
   basePath,
   readOnly = false,
 }: RecordsListProps) {
@@ -89,10 +100,6 @@ export function RecordsList({
     },
     [router, pathname, searchParams]
   )
-
-  const handleResetFilter = () => {
-    navigate({ startDate: '', endDate: '', page: 1 })
-  }
 
   const handleDelete = async (id: string) => {
     startTransition(async () => {
@@ -130,7 +137,11 @@ export function RecordsList({
     setShowExportMenu(false)
   }
 
-  const isFilterActive = startDate || endDate
+  const handleResetFilter = () => {
+    navigate({ startDate: '', endDate: '', category: '', page: 1 })
+  }
+
+  const isFilterActive = startDate || endDate || (category && category !== 'all')
 
   if (total === 0) {
     return (
@@ -191,6 +202,24 @@ export function RecordsList({
                   value={endDate}
                   onChange={(e) => navigate({ endDate: e.target.value, page: 1 })}
                 />
+              </div>
+
+              <div className="space-y-1.5 lg:col-span-1">
+                <Label htmlFor="category" className="text-xs">
+                  Kategori
+                </Label>
+                <select
+                  id="category"
+                  value={category || ''}
+                  onChange={(e) => navigate({ category: e.target.value || '', page: 1 })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1.5 lg:col-span-1">

@@ -16,14 +16,31 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { Activity } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AnalyticsPage() {
+interface AnalyticsPageProps {
+  searchParams: {
+    year?: string
+    month?: string
+  }
+}
+
+const MONTH_NAMES = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+]
+
+const MONTHS_12 = Array.from({ length: 12 }, (_, i) => i + 1)
+
+export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps) {
+  const now = new Date()
+  const selectedYear = Number(searchParams.year) || now.getFullYear()
+  const selectedMonth = Number(searchParams.month) || now.getMonth() + 1
+
   // Fetch all analytics data in parallel server-side.
-  // Any failure is caught and shown as a friendly empty state
-  // so that a single missing series never breaks the whole page.
   let monthly: Awaited<ReturnType<typeof getMonthlyStats>> = null
   let chartData: Awaited<ReturnType<typeof get30DayChartData>> = []
   let categoryData: Awaited<ReturnType<typeof getCategoryStats>> = {
@@ -37,7 +54,7 @@ export default async function AnalyticsPage() {
   try {
     const [monthlyResult, chartResult, categoryResult, trendResult] =
       await Promise.all([
-        getMonthlyStats(),
+        getMonthlyStats(selectedYear, selectedMonth),
         get30DayChartData(30),
         getCategoryStats(30),
         getTrendComparison(30),
@@ -81,6 +98,50 @@ export default async function AnalyticsPage() {
           </p>
         </div>
       </div>
+
+      {/* Month/Year Picker */}
+      <Card>
+        <CardContent className="p-3 sm:p-4">
+          <form className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="analyticsMonth" className="text-xs">Bulan</Label>
+              <select
+                id="analyticsMonth"
+                name="month"
+                defaultValue={selectedMonth}
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+              >
+                {MONTHS_12.map((m) => (
+                  <option key={m} value={m}>
+                    {MONTH_NAMES[m - 1]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="analyticsYear" className="text-xs">Tahun</Label>
+              <select
+                id="analyticsYear"
+                name="year"
+                defaultValue={selectedYear}
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+              >
+                {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <Button type="submit" size="sm" variant="outline">
+              Tampilkan
+            </Button>
+            {(selectedYear !== now.getFullYear() || selectedMonth !== now.getMonth() + 1) && (
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/analytics">↩ Bulan Ini</Link>
+              </Button>
+            )}
+          </form>
+        </CardContent>
+      </Card>
 
       {loadError ? (
         <Card className="animate-fade-in-up">
