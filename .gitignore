@@ -103,3 +103,6 @@ next-env.d.ts
 
 .agents/
 docs/
+
+*.db-shm
+*.db-wal

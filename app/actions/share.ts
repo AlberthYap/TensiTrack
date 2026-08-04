@@ -5,6 +5,8 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { nanoid } from 'nanoid'
+import { checkDemoRateLimit, isDemoEmail, DEMO_MUTATE_LOCKOUT_MESSAGE } from '@/lib/demo'
+import { getClientIp as getRateLimitClientIp } from '@/lib/rate-limit'
 import { PaginatedRecords, MonthlyStats, DailyPoint, CategoryDistribution, TrendComparison } from '@/types/blood-pressure.types'
 import {
   getRecordsByUserId,
@@ -14,27 +16,15 @@ import {
   getTrendComparisonByUserId,
 } from '@/lib/share-internal-queries'
 
-// SECURITY: helpers di lib/share-internal-queries.ts TIDAK memakai 'use server'
-// sehingga tidak terekspos sebagai Server Action publik.
+// SECURITY: helpers in lib/share-internal-queries.ts do NOT use 'use server'
+// directive, so they are not exposed as public Server Actions.
 
-// Constants untuk anti-abuse validateShareToken.
+// Anti-abuse rate limit for validateShareToken.
 const SHARE_RATE_LIMIT_MAX = 30
 const SHARE_RATE_LIMIT_WINDOW_SECONDS = 60
 
 async function getClientIp(): Promise<string> {
-  try {
-    const h = headers()
-    const xff = h.get('x-forwarded-for')
-    if (xff) {
-      const first = xff.split(',')[0]?.trim()
-      if (first) return first.slice(0, 64)
-    }
-    const realIp = h.get('x-real-ip')
-    if (realIp) return realIp.slice(0, 64)
-    return 'unknown'
-  } catch {
-    return 'unknown'
-  }
+  return getRateLimitClientIp()
 }
 
 export async function generateShareToken(expiresInDays?: number | null, maxViews?: number | null) {
@@ -45,15 +35,55 @@ export async function generateShareToken(expiresInDays?: number | null, maxViews
     return { error: 'Unauthorized' }
   }
 
+  // Rate limit demo user mutations by IP
+  const rateLimitResult = await checkDemoRateLimit(user.email, 'share')
+  if (rateLimitResult.error) {
+    return { error: rateLimitResult.error }
+  }
+
   const token = nanoid(32)
 
-  let expiresAt = null
+  let expiresAt: string | null = null
   if (expiresInDays && expiresInDays > 0) {
     const expDate = new Date()
     expDate.setDate(expDate.getDate() + expiresInDays)
     expiresAt = expDate.toISOString()
   }
 
+  // For demo users: use atomic RPC (hard cap check + insert in one DB
+  // transaction) to eliminate the race condition. The RPC is granted only to
+  // service_role, so it must be called via the admin client; otherwise demo
+  // credentials (public) could bypass the per-IP rate limit.
+  if (isDemoEmail(user.email)) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('generateShareToken: SUPABASE_SERVICE_ROLE_KEY is not set')
+      return { error: 'Konfigurasi server tidak lengkap. Silakan coba lagi nanti.' }
+    }
+    const adminClient = createAdminClient()
+    const { data: rpcResult, error: rpcError } = await adminClient.rpc(
+      'create_share_token_atomic',
+      {
+        p_user_id: user.id,
+        p_token: token,
+        p_expires_at: expiresAt,
+        p_max_views: maxViews ?? null,
+      }
+    )
+
+    if (rpcError) {
+      console.error('Atomic share token RPC error:', rpcError)
+      return { error: rpcError.message }
+    }
+
+    if (rpcResult?.error) {
+      return { error: rpcResult.error }
+    }
+
+    revalidatePath('/records')
+    return { data: rpcResult, token }
+  }
+
+  // Regular user — use standard Supabase insert
   const { data, error } = await supabase
     .from('share_tokens')
     .insert({
@@ -103,6 +133,12 @@ export async function revokeShareToken(tokenId: string) {
     return { error: 'Unauthorized' }
   }
 
+  // Rate limit demo user mutations by IP
+  const rateLimitResult = await checkDemoRateLimit(user.email, 'share')
+  if (rateLimitResult.error) {
+    return { error: rateLimitResult.error }
+  }
+
   const { error } = await supabase
     .from('share_tokens')
     .update({ is_active: false })
@@ -125,6 +161,12 @@ export async function deleteShareToken(tokenId: string) {
     return { error: 'Unauthorized' }
   }
 
+  // Rate limit demo user mutations by IP
+  const rateLimitResult = await checkDemoRateLimit(user.email, 'share')
+  if (rateLimitResult.error) {
+    return { error: rateLimitResult.error }
+  }
+
   const { error } = await supabase
     .from('share_tokens')
     .delete()
@@ -142,8 +184,9 @@ export async function deleteShareToken(tokenId: string) {
 export type ShareTokenStatus = 'ok' | 'not_found' | 'inactive' | 'expired' | 'max_views_reached'
 
 /**
- * Atomic token validation + view_count increment via RPC. Single entry point;
- * calling more than once per request over-counts views.
+ * Atomic token validation + view_count increment via RPC.
+ * Use this on the public share page; internal getters use resolveShareToken
+ * so multiple chart/table lookups don't consume max_views.
  */
 export async function validateShareToken(token: string): Promise<{
   error: string | null
@@ -161,7 +204,7 @@ export async function validateShareToken(token: string): Promise<{
 }> {
   const supabase = createAdminClient()
 
-  // Rate limit per IP — fail-open agar legitimate user tidak gagal bila RPC down.
+  // Rate limit per IP — fail-open so legitimate users don't fail when RPC is down.
   try {
     const ip = await getClientIp()
     const { data: rateAllowed, error: rateError } = await supabase.rpc(
@@ -189,7 +232,7 @@ export async function validateShareToken(token: string): Promise<{
   })
 
   if (error) {
-    // Fallback lama jika RPC belum ada (migration belum dijalankan).
+    // Legacy fallback if RPC doesn't exist yet (migration not applied).
     if (error.code === 'PGRST202' || error.message.includes('function')) {
       return legacyValidateShareToken(token)
     }
@@ -269,21 +312,82 @@ async function legacyValidateShareToken(token: string) {
 }
 
 async function resolveShareUserId(token: string): Promise<{ userId: string } | null> {
-  const { data: shareToken, error } = await validateShareToken(token)
+  const { data: shareToken, error } = await resolveShareToken(token)
   if (error || !shareToken) {
     return null
   }
   return { userId: shareToken.user_id }
 }
 
-// Setiap *ByShareToken memvalidasi token atomik (1 view per call),
-// lalu delegasi ke *ByUserId. Fail-soft per return type.
+/**
+ * Validate token without incrementing view_count. Used by internal getters
+ * so multiple chart/table lookups don't consume max_views.
+ */
+async function resolveShareToken(token: string): Promise<{
+  error: string | null
+  data: {
+    id: string
+    user_id: string
+    token: string
+    expires_at: string | null
+    is_active: boolean
+    view_count: number
+    max_views: number | null
+    created_at: string
+    updated_at: string
+  } | null
+}> {
+  const supabase = createAdminClient()
+
+  const { data: shareToken, error } = await supabase
+    .from('share_tokens')
+    .select('*')
+    .eq('token', token)
+    .single()
+
+  if (error || !shareToken) {
+    return { error: 'Invalid or expired token', data: null }
+  }
+
+  if (!shareToken.is_active) {
+    return { error: 'Token sudah tidak aktif', data: null }
+  }
+
+  if (shareToken.expires_at) {
+    const expiresAt = new Date(shareToken.expires_at)
+    if (expiresAt < new Date()) {
+      return { error: 'Token has expired', data: null }
+    }
+  }
+
+  if (shareToken.max_views && shareToken.view_count >= shareToken.max_views) {
+    return { error: 'Token has reached maximum views', data: null }
+  }
+
+  return {
+    error: null,
+    data: {
+      id: shareToken.id,
+      user_id: shareToken.user_id,
+      token: shareToken.token,
+      expires_at: shareToken.expires_at,
+      is_active: shareToken.is_active,
+      view_count: shareToken.view_count,
+      max_views: shareToken.max_views,
+      created_at: shareToken.created_at,
+      updated_at: shareToken.updated_at,
+    },
+  }
+}
+
+// Each *ByShareToken validates the token without incrementing view_count
+// (via resolveShareToken) then delegates to *ByUserId. Fail-soft per return type.
 
 export async function getRecordsByShareToken(
   token: string,
   options: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}
 ): Promise<PaginatedRecords & { error: string | null }> {
-  const { data: shareToken, error: tokenError } = await validateShareToken(token)
+  const { data: shareToken, error: tokenError } = await resolveShareToken(token)
   if (tokenError || !shareToken) {
     return {
       error: tokenError || 'Invalid token',

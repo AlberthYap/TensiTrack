@@ -41,7 +41,7 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-import { deleteAccount } from '@/app/actions/profile'
+import { deleteAccount, changePassword, updateProfile } from '@/app/actions/profile'
 
 const VALID_PASSWORD = 'ValidPassword123'
 
@@ -148,5 +148,59 @@ describe('deleteAccount', () => {
     expect(result?.error).toBeDefined()
     // CRITICAL: user must NOT be signed out
     expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  // DEMO: shared demo account must not be deleted.
+  it('prevents deletion of the demo account', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const result = await deleteAccount('HAPUS AKUN', VALID_PASSWORD)
+    expect(result?.error).toMatch(/Akun demo tidak dapat dihapus/)
+    expect(mockSignInWithPassword).not.toHaveBeenCalled()
+    expect(mockAdminDeleteUser).not.toHaveBeenCalled()
+  })
+})
+
+describe('changePassword', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  // DEMO: shared demo account password must remain fixed.
+  it('prevents changing password for the demo account', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const fd = new FormData()
+    fd.set('currentPassword', 'old-password')
+    fd.set('newPassword', 'NewPassword123')
+    fd.set('confirmPassword', 'NewPassword123')
+
+    const result = await changePassword(fd)
+    expect(result?.error).toMatch(/Akun demo tidak dapat mengubah password/)
+    expect(mockSignInWithPassword).not.toHaveBeenCalled()
+  })
+})
+
+describe('updateProfile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  // DEMO: shared demo account profile must remain fixed.
+  it('prevents updating profile for the demo account', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const fd = new FormData()
+    fd.set('full_name', 'Hacker')
+    fd.set('date_of_birth', '2000-01-01')
+
+    const result = await updateProfile(fd)
+    expect(result?.error).toMatch(/Akun demo tidak dapat mengubah profil/)
   })
 })

@@ -11,11 +11,20 @@ const mockIs = vi.fn()
 const mockOrder = vi.fn()
 const mockSingle = vi.fn()
 const mockMaybeSingle = vi.fn()
+const mockRpc = vi.fn()
+const mockAdminRpc = vi.fn()
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
+    rpc: mockRpc,
+  }),
+}))
+
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: () => ({
+    rpc: mockAdminRpc,
   }),
 }))
 
@@ -31,7 +40,24 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }))
 
-import { addBloodPressureRecord, getBloodPressureRecords, batchImportBloodPressureRecords } from '@/app/actions/blood-pressure'
+vi.mock('@/lib/rate-limit', () => ({
+  getClientIp: vi.fn().mockResolvedValue('127.0.0.1'),
+  checkAuthRateLimit: vi.fn().mockResolvedValue({ allowed: true, error: null }),
+}))
+
+import {
+  addBloodPressureRecord,
+  getBloodPressureRecords,
+  batchImportBloodPressureRecords,
+  updateBloodPressureRecord,
+  deleteBloodPressureRecord,
+} from '@/app/actions/blood-pressure'
+import { checkAuthRateLimit } from '@/lib/rate-limit'
+
+// Guard demo path memerlukan env ini; default di-set agar test demo RPC path
+// (hard cap & batch) bisa menjangkau admin client. Test khusus yang mengecek
+// perilaku saat key missing menghapus & me-restore env ini sendiri.
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
 
 describe('addBloodPressureRecord', () => {
   beforeEach(() => {
@@ -95,6 +121,66 @@ describe('addBloodPressureRecord', () => {
 
     const result = await addBloodPressureRecord(fd)
     expect(result).toEqual({ error: 'DB error' })
+  })
+
+  // DEMO: demo account mutations are rate limited by IP.
+  it('returns error when demo user hits rate limit', async () => {
+    vi.mocked(checkAuthRateLimit).mockResolvedValueOnce({ allowed: false, error: null })
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const fd = new FormData()
+    fd.set('systolic', '120')
+    fd.set('diastolic', '80')
+    fd.set('measured_at', new Date().toISOString())
+
+    const result = await addBloodPressureRecord(fd)
+    expect(result?.error).toMatch(/Batas demo tercapai/)
+    expect(checkAuthRateLimit).toHaveBeenCalledWith(
+      'demo:record:127.0.0.1',
+      expect.any(Number),
+      expect.any(Number)
+    )
+    // Should not reach insert when rate limited
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  // DEMO: demo account has hard cap on total records (including soft-deleted).
+  // Uses atomic RPC (insert + hard cap check in one DB transaction).
+  // SECURITY: RPC hanya boleh dipanggil via admin client (service_role),
+  // bukan client user — supaya demo credentials publik tidak bisa bypass
+  // rate limit dengan memanggil RPC langsung dari browser.
+  it('returns error when demo user reaches hard cap', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    mockAdminRpc.mockResolvedValue({
+      data: { error: 'Batas demo tercapai. Silakan buat akun gratis untuk melanjutkan.' },
+      error: null,
+    })
+
+    const fd = new FormData()
+    fd.set('systolic', '120')
+    fd.set('diastolic', '80')
+    fd.set('measured_at', new Date().toISOString())
+
+    const result = await addBloodPressureRecord(fd)
+    expect(result?.error).toMatch(/Batas demo tercapai/)
+    // RPC harus dipanggil via admin client
+    expect(mockAdminRpc).toHaveBeenCalledWith('insert_bp_record_atomic', {
+      p_user_id: 'demo-1',
+      p_systolic: 120,
+      p_diastolic: 80,
+      p_pulse: null,
+      p_category: 'hypertension_stage_1', // 120/80 → 'hypertension_stage_1' per AHA (diastolic ≥80)
+      p_notes: null,
+      p_measured_at: expect.any(String),
+    })
+    expect(mockRpc).not.toHaveBeenCalled()
+    // Regular insert should not be called for demo users
+    expect(mockInsert).not.toHaveBeenCalled()
   })
 })
 
@@ -263,5 +349,98 @@ describe('batchImportBloodPressureRecords', () => {
 
     expect(result.success).toBe(1)
     // If redirect was called, an error would have been thrown here
+  })
+
+  // DEMO: batch import untuk demo user harus lewat atomic batch RPC via admin
+  // client (service_role), bukan insert biasa — sekaligus cek hard cap.
+  it('uses admin client atomic RPC for demo user batch import', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+    mockAdminRpc.mockResolvedValue({ data: { success: true, count: 2 }, error: null })
+
+    const now = new Date().toISOString()
+    const result = await batchImportBloodPressureRecords([
+      { systolic: 110, diastolic: 70, pulse: null, measured_at: now },
+      { systolic: 135, diastolic: 85, pulse: null, measured_at: now },
+    ])
+
+    expect(result.success).toBe(2)
+    expect(mockAdminRpc).toHaveBeenCalledWith('batch_insert_bp_records_atomic', {
+      p_user_id: 'demo-1',
+      p_records: [
+        {
+          systolic: 110,
+          diastolic: 70,
+          pulse: null,
+          category: 'normal', // 110/70 → 'normal' per AHA
+          notes: null,
+          measured_at: now,
+        },
+        {
+          systolic: 135,
+          diastolic: 85,
+          pulse: null,
+          category: 'hypertension_stage_1', // 135/85 → 'hypertension_stage_1' per AHA
+          notes: null,
+          measured_at: now,
+        },
+      ],
+    })
+    // Regular insert tidak boleh dipanggil untuk demo user
+    expect(mockInsert).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  // DEMO: jika SUPABASE_SERVICE_ROLE_KEY tidak di-set, batch import demo gagal
+  // dengan pesan yang jelas (bukan error PostgREST yang membingungkan).
+  it('returns clear error when service role key missing for demo batch import', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+    const saved = process.env.SUPABASE_SERVICE_ROLE_KEY
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
+    try {
+      const result = await batchImportBloodPressureRecords([
+        { systolic: 120, diastolic: 80, pulse: null, measured_at: new Date().toISOString() },
+      ])
+      expect(result.success).toBe(0)
+      expect(result.errors[0].message).toMatch(/Konfigurasi server tidak lengkap/)
+      expect(mockAdminRpc).not.toHaveBeenCalled()
+    } finally {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = saved
+    }
+  })
+})
+
+describe('updateBloodPressureRecord', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns error when demo user hits rate limit', async () => {
+    vi.mocked(checkAuthRateLimit).mockResolvedValueOnce({ allowed: false, error: null })
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const result = await updateBloodPressureRecord('record-1', new FormData())
+    expect(result?.error).toMatch(/Batas demo tercapai/)
+  })
+})
+
+describe('deleteBloodPressureRecord', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns error when demo user hits rate limit', async () => {
+    vi.mocked(checkAuthRateLimit).mockResolvedValueOnce({ allowed: false, error: null })
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const result = await deleteBloodPressureRecord('record-1')
+    expect(result?.error).toMatch(/Batas demo tercapai/)
   })
 })

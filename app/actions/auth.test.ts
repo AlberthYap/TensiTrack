@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockGetUser = vi.fn()
 const mockSignInWithPassword = vi.fn()
 const mockResetPasswordForEmail = vi.fn()
+const mockUpdateUser = vi.fn()
+const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => ({
@@ -10,7 +12,9 @@ vi.mock('@/lib/supabase/server', () => ({
       getUser: mockGetUser,
       signInWithPassword: mockSignInWithPassword,
       resetPasswordForEmail: mockResetPasswordForEmail,
+      updateUser: mockUpdateUser,
     },
+    rpc: mockRpc,
   }),
 }))
 
@@ -46,7 +50,7 @@ vi.mock('next/headers', () => ({
   }),
 }))
 
-import { login, register, forgotPassword } from '@/app/actions/auth'
+import { login, register, forgotPassword, resetPassword, loginAsDemo } from '@/app/actions/auth'
 
 const VALID_REGISTER_TOKEN = 'test-register-token-abc123'
 process.env.REGISTER_ACCESS_TOKEN = VALID_REGISTER_TOKEN
@@ -123,6 +127,48 @@ describe('login', () => {
     expect(result?.error).toMatch(/Terlalu banyak/)
     // CRITICAL: tidak melanjutkan ke signInWithPassword pada rate-limit hit
     expect(mockSignInWithPassword).not.toHaveBeenCalled()
+  })
+
+  // DEMO: cleanup function should be called after demo user login succeeds.
+  it('triggers demo data cleanup on successful demo login', async () => {
+    mockSignInWithPassword.mockResolvedValue({ error: null })
+
+    const fd = new FormData()
+    fd.set('email', 'guest@tensitrack.com')
+    fd.set('password', 'guest@tensitrack.com')
+
+    try {
+      await login(fd)
+    } catch (e) {
+      // expected redirect to /dashboard
+    }
+
+    expect(mockSignInWithPassword).toHaveBeenCalledWith({
+      email: 'guest@tensitrack.com',
+      password: 'guest@tensitrack.com',
+    })
+    expect(mockRpc).toHaveBeenCalledWith('cleanup_demo_data')
+  })
+})
+
+describe('loginAsDemo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('logs in with demo credentials', async () => {
+    mockSignInWithPassword.mockResolvedValue({ error: null })
+
+    try {
+      await loginAsDemo()
+    } catch (e) {
+      // expected redirect to /dashboard
+    }
+
+    expect(mockSignInWithPassword).toHaveBeenCalledWith({
+      email: 'guest@tensitrack.com',
+      password: 'guest@tensitrack.com',
+    })
   })
 })
 
@@ -209,6 +255,16 @@ describe('register', () => {
     const result = await register(fd, VALID_REGISTER_TOKEN)
     expect(result?.error).toMatch(/Terlalu banyak/)
   })
+
+  it('prevents registration using the reserved demo email', async () => {
+    const fd = new FormData()
+    fd.set('email', 'guest@tensitrack.com')
+    fd.set('password', 'Secret123!')
+    fd.set('full_name', 'Hacker')
+
+    const result = await register(fd, VALID_REGISTER_TOKEN)
+    expect(result?.error).toMatch(/Email demo tidak dapat digunakan/)
+  })
 })
 
 describe('forgotPassword', () => {
@@ -217,7 +273,7 @@ describe('forgotPassword', () => {
     rateLimitMocks.mockCheckAuthRateLimit.mockResolvedValue({ allowed: true, error: null })
   })
 
-  it('returns generic success message when NEXT_PUBLIC_APP_URL unset', async () => {
+  it('returns error when NEXT_PUBLIC_APP_URL is unset', async () => {
     delete process.env.NEXT_PUBLIC_APP_URL
     mockResetPasswordForEmail.mockResolvedValue({ error: null })
 
@@ -225,7 +281,7 @@ describe('forgotPassword', () => {
     fd.set('email', 'user@example.com')
     const result = await forgotPassword(fd)
 
-    expect(result).toHaveProperty('success')
+    expect(result?.error).toMatch(/Layanan reset password tidak tersedia/)
     // CRITICAL: tidak lanjut ke resetPasswordForEmail jika APP_URL missing
     expect(mockResetPasswordForEmail).not.toHaveBeenCalled()
   })
@@ -259,5 +315,38 @@ describe('forgotPassword', () => {
     // Response generik tidak membedakan rate-limited vs unregistered email.
     expect(result).toHaveProperty('success')
     expect(mockResetPasswordForEmail).not.toHaveBeenCalled()
+  })
+
+  it('prevents demo account password reset', async () => {
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com'
+    mockResetPasswordForEmail.mockResolvedValue({ error: null })
+
+    const fd = new FormData()
+    fd.set('email', 'guest@tensitrack.com')
+    const result = await forgotPassword(fd)
+
+    expect(result?.error).toMatch(/Akun demo tidak dapat mereset password/)
+    expect(mockResetPasswordForEmail).not.toHaveBeenCalled()
+  })
+})
+
+describe('resetPassword', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('prevents resetting password for the demo account', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+    mockUpdateUser.mockResolvedValue({ error: null })
+
+    const fd = new FormData()
+    fd.set('password', 'NewPassword123')
+    fd.set('confirmPassword', 'NewPassword123')
+    const result = await resetPassword(fd)
+
+    expect(result?.error).toMatch(/Akun demo tidak dapat mereset password/)
+    expect(mockUpdateUser).not.toHaveBeenCalled()
   })
 })

@@ -1,20 +1,20 @@
-# Tensi Harian - Aplikasi Pencatat Tekanan Darah
+# Tensi Harian — Blood Pressure Tracker
 
-Aplikasi web modern untuk mencatat dan memantau tekanan darah harian dengan mudah, aman, dan visual yang menarik.
+A modern web application to easily and securely record and monitor daily blood pressure with polished visuals.
 
 ## ✨ Highlights
 
-- 🎨 **Visual Modern** — Glass-morphism, gradient, animasi halus, dan dark mode
-- 📊 **Analitik Mendalam** — Grafik 30 hari, distribusi kategori, tren perbandingan
-- 📤 **Export Fleksibel** — Excel (.xlsx) dan PDF dengan header branded
-- 📥 **Import CSV** — Upload data historis dengan validasi otomatis
-- 🔗 **Share dengan QR Code** — Buat link share-only dengan QR untuk scan cepat
-- 🔐 **Aman & Privat** — Row Level Security (RLS), enkripsi, dan kontrol penuh
-- 📱 **Responsif** — Optimal di mobile, tablet, dan desktop
+- 🎨 **Modern Visuals** — Glass-morphism, gradients, smooth animations, and dark mode
+- 📊 **Deep Analytics** — 30-day charts, category distribution, trend comparison
+- 📤 **Flexible Export** — Excel (.xlsx) and PDF with branded headers
+- 📥 **CSV Import** — Upload historical data with automatic validation
+- 🔗 **Share with QR Code** — Create read-only share links with QR for quick scanning
+- 🔐 **Secure & Private** — Row Level Security (RLS), encryption, and full control
+- 📱 **Responsive** — Optimized for mobile, tablet, and desktop
 
 ## 🚀 Tech Stack
 
-- **Framework:** Next.js 14+ (App Router) dengan TypeScript
+- **Framework:** Next.js 14+ (App Router) with TypeScript
 - **Styling:** Tailwind CSS + custom design system (gradients, glass, animations)
 - **UI Components:** shadcn/ui (Button, Card, Input, Label, Badge) + custom components
 - **Backend:** Supabase (PostgreSQL + Auth + RLS)
@@ -22,14 +22,14 @@ Aplikasi web modern untuk mencatat dan memantau tekanan darah harian dengan muda
 - **Export:** xlsx (Excel), jspdf + jspdf-autotable (PDF)
 - **QR Code:** qrcode.react
 - **Icons:** Lucide Icons
-- **Date:** date-fns dengan locale Indonesia
+- **Date:** date-fns with Indonesian locale
 - **Validation:** Zod
 
 ## 📋 Prerequisites
 
 - Node.js 18+
-- npm atau yarn
-- Akun Supabase (gratis)
+- npm or yarn
+- Supabase account (free tier)
 
 ## 🛠️ Installation
 
@@ -47,14 +47,22 @@ npm install
 ```
 
 3. **Setup Supabase**
-   - Buat project baru di [Supabase](https://supabase.com)
-   - Salin project URL dan anon key
-   - Jalankan migrations di `supabase/migrations/` secara berurutan:
+   - Create a new project on [Supabase](https://supabase.com)
+   - Copy the project URL and anon key
+   - Run **all** migrations in `supabase/migrations/` in order:
      - `001_create_profiles.sql`
      - `002_create_blood_pressure_records.sql`
      - `003_create_rls_policies.sql`
      - `004_create_share_tokens.sql`
      - `005_atomic_share_token_increment.sql`
+     - `006_share_rate_limits.sql`
+     - `007_auth_rate_limits.sql`
+     - `008_add_demo_user.sql`
+
+   **Note**: After migration `008`, run the seed script to create the demo user:
+   ```bash
+   npx tsx scripts/seed-demo-user.ts
+   ```
 
 4. **Setup environment variables**
 
@@ -78,7 +86,7 @@ REGISTER_ACCESS_TOKEN=your-secret-token-for-registration
 npm run dev
 ```
 
-Buka [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000)
 
 ## 📁 Project Structure
 
@@ -140,36 +148,36 @@ tensi/
 
 #### Core
 - ✅ Authentication (register, login, logout, forgot/reset password)
-- ✅ Dashboard dengan latest reading, weekly chart, dan quick stats
-- ✅ CRUD Blood Pressure Records dengan validasi
-- ✅ Auto Classification mengikuti pedoman AHA (5 kategori)
-- ✅ Detail page untuk setiap pencatatan
-- ✅ Pagination & filter berdasarkan tanggal
-- ✅ Discard confirmation di form edit
+- ✅ Dashboard with latest reading, weekly chart, and quick stats
+- ✅ CRUD Blood Pressure Records with validation
+- ✅ Auto Classification following AHA guidelines (5 categories)
+- ✅ Detail page for each record
+- ✅ Pagination & date range filters
+- ✅ Discard confirmation on edit form
 - ✅ Responsive Design & Dark Mode
 
 #### Analytics
-- ✅ Monthly statistics (rata-rata, max, min)
+- ✅ Monthly statistics (average, max, min)
 - ✅ 30-day blood pressure chart
 - ✅ Category distribution (pie chart)
-- ✅ Trend comparison (vs 30 hari sebelumnya)
-- ✅ Empty state untuk user baru
+- ✅ Trend comparison (vs previous 30 days)
+- ✅ Empty state for new users
 
 #### Sharing
-- ✅ Generate share link dengan token unik
+- ✅ Generate share link with unique token
 - ✅ Expiration date & max views control
-- ✅ **QR Code** untuk scan cepat oleh device lain
+- ✅ **QR Code** for quick scanning by other devices
 - ✅ Revoke & delete share tokens
-- ✅ Public share page dengan branding
+- ✅ Public share page with branding
 
 #### Export & Import
-- ✅ Export ke Excel (.xlsx)
-- ✅ Export ke PDF dengan branded header
-- ✅ **Import CSV** dengan preview & validasi
-- ✅ Template download untuk format CSV
+- ✅ Export to Excel (.xlsx)
+- ✅ Export to PDF with branded header
+- ✅ **CSV Import** with preview & validation
+- ✅ Template download for CSV format
 
 #### Settings
-- ✅ Update profil (nama, tanggal lahir)
+- ✅ Update profile (name, date of birth)
 - ✅ Change password
 - ✅ Delete account (soft delete)
 
@@ -178,8 +186,8 @@ tensi/
 - ✅ Animated aurora background
 - ✅ Glass-morphism sidebar & header
 - ✅ Gradient text & icons
-- ✅ Stagger animations untuk cards
-- ✅ Loading skeletons dengan shimmer
+- ✅ Stagger animations for cards
+- ✅ Loading skeletons with shimmer
 - ✅ Custom 404 page
 - ✅ Global error boundary
 - ✅ SEO (OG meta, robots, sitemap)
@@ -192,31 +200,31 @@ tensi/
 - [ ] PWA Support (offline mode)
 - [ ] Smart Insights (AI recommendations)
 - [ ] Multi-user (family accounts)
-- [ ] Integration dengan Apple Health / Google Fit
+- [ ] Integration with Apple Health / Google Fit
 - [ ] Medication tracking
 
 ## 🏥 Blood Pressure Categories
 
-Berdasarkan American Heart Association (AHA):
+Based on American Heart Association (AHA):
 
 | Category             | Systolic    | Diastolic   |
 | -------------------- | ----------- | ----------- |
-| Low (Rendah)         | < 90        | OR < 60     |
+| Low                  | < 90        | OR < 60     |
 | Normal               | < 120       | AND < 80    |
-| Elevated (Meningkat) | 120-129     | AND < 80    |
+| Elevated             | 120-129     | AND < 80    |
 | Hypertension Stage 1 | 130-139     | OR 80-89    |
 | Hypertension Stage 2 | ≥ 140       | OR ≥ 90     |
 
 ## 🔒 Security
 
-- **Row Level Security (RLS)** di Supabase untuk semua tabel
-- **HTTPS only** di production
-- **Input validation** dengan Zod di server actions
+- **Row Level Security (RLS)** on Supabase for all tables
+- **HTTPS only** in production
+- **Input validation** with Zod in server actions
 - **Session management** via Supabase Auth
 - **CSRF protection** (Next.js built-in)
-- **Soft delete** untuk data records
-- **Atomic share token increment** untuk mencegah race condition
-- **Token-based access** untuk registrasi (`REGISTER_ACCESS_TOKEN`)
+- **Soft delete** for records
+- **Atomic share token increment** to prevent race conditions
+- **Token-based access** for registration (`REGISTER_ACCESS_TOKEN`)
 
 ## 📝 Scripts
 
@@ -231,20 +239,20 @@ npm run lint         # Run ESLint
 
 ### Vercel (Recommended)
 
-1. Push code ke GitHub
-2. Import project di [Vercel](https://vercel.com)
+1. Push code to GitHub
+2. Import project on [Vercel](https://vercel.com)
 3. Add environment variables
 4. Deploy!
 
 ### Environment Variables
 
-Tambahkan di Project Settings → Environment Variables:
+Add in Project Settings → Environment Variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_APP_URL` (URL production)
-- `REGISTER_ACCESS_TOKEN` (token untuk akses registrasi)
+- `NEXT_PUBLIC_APP_URL` (production URL)
+- `REGISTER_ACCESS_TOKEN` (token for registration access)
 
 ## 📖 Documentation
 
@@ -257,7 +265,7 @@ Tambahkan di Project Settings → Environment Variables:
 
 ## 🎨 Design System
 
-Aplikasi ini menggunakan custom design system yang didefinisikan di `app/globals.css` dan `tailwind.config.ts`:
+The app uses a custom design system defined in `app/globals.css` and `tailwind.config.ts`:
 
 ### Gradient Utilities
 
@@ -294,7 +302,7 @@ Aplikasi ini menggunakan custom design system yang didefinisikan di `app/globals
 
 ## 🤝 Contributing
 
-Ini adalah project personal/small scale. Contributions welcome!
+Personal / small-scale project. Contributions welcome!
 
 ## 📄 License
 
@@ -306,4 +314,4 @@ Alberth Yaputra
 
 ---
 
-**Disclaimer:** Aplikasi ini untuk personal use dan monitoring kesehatan pribadi. Selalu konsultasi dengan dokter untuk keputusan medis.
+**Disclaimer:** This app is for personal use and personal health monitoring. Always consult a doctor for medical decisions.

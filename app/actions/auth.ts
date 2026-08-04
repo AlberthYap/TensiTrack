@@ -11,8 +11,9 @@ import {
   resetPasswordSchema,
 } from '@/lib/validations'
 import { checkAuthRateLimit, getClientIp } from '@/lib/rate-limit'
+import { DEMO_EMAIL, DEMO_PASSWORD, isDemoEmail } from '@/lib/demo'
 
-// Anti-abuse limits untuk endpoint auth.
+// Anti-abuse limits for auth endpoints.
 const LOGIN_MAX = 5
 const LOGIN_WINDOW_SECONDS = 15 * 60
 const REGISTER_MAX = 3
@@ -20,7 +21,7 @@ const REGISTER_WINDOW_SECONDS = 60 * 60
 const FORGOT_PASSWORD_MAX = 3
 const FORGOT_PASSWORD_WINDOW_SECONDS = 60 * 60
 
-// Lockout banner generik — hindari user enumeration.
+// Generic lockout banner — prevent user enumeration.
 const LOCKOUT_MESSAGE = 'Terlalu banyak permintaan. Coba lagi nanti.'
 
 export async function register(
@@ -29,7 +30,7 @@ export async function register(
 ) {
   const supabase = await createClient()
 
-  // Server-side gate: REGISTER_ACCESS_TOKEN harus cocok (timingSafeEqual).
+  // Server-side gate: REGISTER_ACCESS_TOKEN must match (constant-time via timingSafeEqual).
   const expected = process.env.REGISTER_ACCESS_TOKEN
   if (
     !expected ||
@@ -68,6 +69,11 @@ export async function register(
 
   const { email, password, full_name } = validatedFields.data
 
+  // Demo email is reserved for the shared demo account.
+  if (isDemoEmail(email)) {
+    return { error: 'Email demo tidak dapat digunakan untuk registrasi.' }
+  }
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
@@ -91,7 +97,7 @@ export async function register(
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
-  // Per-key composite {ip}+{email} agar attacker tidak bypass via rotasi IP.
+  // Per-key composite {ip}+{email} to prevent IP rotation bypass.
   const fd = formData
   const emailRaw = fd.get('email')
   const ip = await getClientIp()
@@ -144,8 +150,28 @@ export async function login(formData: FormData) {
     }
   }
 
+  // Clean up demo data older than 24 hours on every demo login.
+  if (isDemoEmail(email)) {
+    try {
+      await supabase.rpc('cleanup_demo_data')
+    } catch (cleanupError) {
+      console.error('Demo cleanup error:', cleanupError)
+    }
+  }
+
   revalidatePath('/', 'layout')
   redirect('/dashboard')
+}
+
+/**
+ * Direct login as the shared demo account.
+ * Credentials are server-side only — never exposed to the client.
+ */
+export async function loginAsDemo(): Promise<{ error?: string } | void> {
+  const fd = new FormData()
+  fd.set('email', DEMO_EMAIL)
+  fd.set('password', DEMO_PASSWORD)
+  return await login(fd)
 }
 
 export async function logout() {
@@ -164,8 +190,16 @@ export async function getUser() {
 export async function forgotPassword(formData: FormData) {
   const supabase = await createClient()
 
-  // Per-email — cegah inbox bombing.
+  // Per-email — prevent inbox bombing.
   const emailRaw = formData.get('email')
+
+  // Demo account password is fixed; reset is not allowed.
+  if (typeof emailRaw === 'string' && isDemoEmail(emailRaw)) {
+    return {
+      error: 'Akun demo tidak dapat mereset password. Silakan login sebagai demo.',
+    }
+  }
+
   if (typeof emailRaw === 'string' && emailRaw.length > 0) {
     const { allowed } = await checkAuthRateLimit(
       `forgot:email:${emailRaw.toLowerCase()}`,
@@ -173,7 +207,7 @@ export async function forgotPassword(formData: FormData) {
       FORGOT_PASSWORD_WINDOW_SECONDS
     )
     if (!allowed) {
-      // Respons generik identik dengan sukses — jangan bocorkan rate-limit vs unregistered email.
+      // Generic response identical to success — don't leak rate-limit vs unregistered email.
       return {
         success:
           'Jika email terdaftar, link reset password telah dikirim. Cek inbox Anda.',
@@ -191,13 +225,13 @@ export async function forgotPassword(formData: FormData) {
 
   const { email } = validatedFields.data
 
-  // Hanya NEXT_PUBLIC_APP_URL — JANGAN pakai Host header (Host Header Injection).
+  // Only NEXT_PUBLIC_APP_URL — do NOT use Host header (host header injection).
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
   if (!appUrl) {
     console.error('forgotPassword: NEXT_PUBLIC_APP_URL not configured')
     return {
-      success:
-        'Jika email terdaftar, link reset password telah dikirim. Cek inbox Anda.',
+      error:
+        'Layanan reset password tidak tersedia. Silakan hubungi admin.',
     }
   }
   const redirectTo = `${appUrl.replace(/\/+$/, '')}/reset-password`
@@ -242,6 +276,13 @@ export async function resetPassword(formData: FormData) {
     return {
       error:
         'Sesi reset tidak valid atau sudah kadaluarsa. Minta link reset baru.',
+    }
+  }
+
+  // Demo account password is fixed; reset is not allowed.
+  if (user.email && isDemoEmail(user.email)) {
+    return {
+      error: 'Akun demo tidak dapat mereset password. Silakan login sebagai demo.',
     }
   }
 

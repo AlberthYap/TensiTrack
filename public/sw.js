@@ -102,7 +102,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url)
 
-  // 1) HTML navigations — network first, offline fallback last.
+  // 1) HTML navigations — network first, fallback to offline page.
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
@@ -117,8 +117,8 @@ self.addEventListener('fetch', (event) => {
           return res
         })
         .catch(async () => {
-          const cached = await caches.match(req)
-          if (cached) return cached
+          // Fallback to offline page. We intentionally do not return cached
+          // shell for other routes to avoid confusing state.
           const offline = await caches.match('/~offline')
           return (
             offline ||

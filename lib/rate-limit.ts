@@ -2,16 +2,16 @@ import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
- * Helper server-side untuk rate limiting berbasis Supabase RPC.
+ * Server-side helper for rate limiting backed by Supabase RPC.
  *
- * TIDAK memakai direktif `'use server'` → tidak terekspos sebagai
- * Server Action publik. Aman di-import dari server actions/route handlers.
+ * Does NOT use the `'use server'` directive → not exposed as a public
+ * Server Action. Safe to import from server actions and route handlers.
  */
 
 /**
- * Ekstrak IP client dari header request. Fallsback ke 'unknown' bila
- * di luar request context (mis. unit test). Aman di belakang Vercel/
- * nginx terpercaya; dokumentasikan konfigurasi trust-proxy saat deploy.
+ * Extract client IP from request headers. Falls back to 'unknown' when
+ * outside request context (e.g. unit tests). Safe behind trusted
+ * Vercel/nginx proxies; document trust-proxy configuration on deploy.
  */
 export async function getClientIp(): Promise<string> {
   try {
@@ -30,12 +30,12 @@ export async function getClientIp(): Promise<string> {
 }
 
 /**
- * Cek apakah `key` masih di bawah limit untuk bucket auth.
- * Fail-open: jika RPC/admin-client unavailable, izinkan dengan logging.
+ * Check whether `key` is still under the auth bucket limit.
+ * Fail-open: if RPC/admin-client is unavailable, allow with logging.
  *
- * @param key identifier bucket (mis. "login:ip:email:{ip}:{email}")
- * @param maxCount jumlah request yang diizinkan dalam window
- * @param windowSeconds lebar window sliding (detik)
+ * @param key bucket identifier (e.g. "login:ip:email:{ip}:{email}")
+ * @param maxCount allowed request count within the window
+ * @param windowSeconds sliding window width (seconds)
  */
 export async function checkAuthRateLimit(
   key: string,

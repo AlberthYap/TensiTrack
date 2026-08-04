@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoEmail } from '@/lib/demo'
 
 const updateProfileSchema = z.object({
   full_name: z.string().min(2, 'Nama minimal 2 karakter').max(100),
@@ -37,6 +38,11 @@ export async function updateProfile(formData: FormData) {
   } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized' }
+  }
+
+  // Demo account profile is shared and must remain fixed.
+  if (user.email && isDemoEmail(user.email)) {
+    return { error: 'Akun demo tidak dapat mengubah profil.' }
   }
 
   const dobValue = formData.get('date_of_birth')
@@ -88,6 +94,13 @@ export async function changePassword(formData: FormData) {
     return { error: 'Unauthorized' }
   }
 
+  // Demo account password is fixed and cannot be changed.
+  if (isDemoEmail(user.email)) {
+    return {
+      error: 'Akun demo tidak dapat mengubah password.',
+    }
+  }
+
   const validatedFields = changePasswordSchema.safeParse({
     currentPassword: formData.get('currentPassword'),
     newPassword: formData.get('newPassword'),
@@ -121,9 +134,9 @@ export async function changePassword(formData: FormData) {
 }
 
 /**
- * Hapus akun: wajib re-auth password untuk mencegah session-hijack abuse.
- * BUG #15: jika admin delete gagal, JANGAN signOut — user harus tetap
- * punya akses untuk coba lagi / hubungi admin.
+ * Delete account: re-auth with password required to prevent session-hijack
+ * abuse. BUG #15: if admin delete fails, do NOT signOut — user must retain
+ * access to try again or contact admin.
  */
 export async function deleteAccount(confirmation: string, password: string) {
   const supabase = await createClient()
@@ -145,6 +158,14 @@ export async function deleteAccount(confirmation: string, password: string) {
         'Akun tidak memiliki email yang dapat diverifikasi. Hubungi admin.',
     }
   }
+
+  // Demo account is shared and must not be deleted by visitors.
+  if (isDemoEmail(user.email)) {
+    return {
+      error: 'Akun demo tidak dapat dihapus.',
+    }
+  }
+
   if (typeof password !== 'string' || password.length === 0) {
     return {
       error: 'Password saat ini wajib diisi untuk konfirmasi penghapusan akun.',

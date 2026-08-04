@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
 /**
- * Schema zusammen untuk `measured_at` dengan window valid:
- * - Tidak lebih dari 1 tahun ke depan (mencegah typo/cheat)
- * - Tidak lebih dari 10 tahun ke belakang (record kuno tidak relevan)
+ * Combined schema for `measured_at` with a valid window:
+ * - No more than 1 year in the future (prevents typo/cheat)
+ * - No more than 10 years in the past (old records are irrelevant)
  */
 const measuredAtSchema = z
   .string()
@@ -30,8 +30,8 @@ const measuredAtSchema = z
     { message: 'Tanggal pengukuran tidak boleh lebih dari 10 tahun yang lalu' }
   )
 
-// Daftar password paling umum dari breach list publik (RockYou, SecLists).
-// Tidak exhaustive — Supabase Auth yang tetap memvalidasi via bcrypt.
+// Most common passwords from public breach lists (RockYou, SecLists).
+// Not exhaustive — Supabase Auth still validates via bcrypt.
 const COMMON_PASSWORDS = new Set([
   '12345678', 'password', '123456789', 'qwerty', 'qwerty123',
   '11111111', '1234567', '12345', '123456', '1234',
@@ -44,9 +44,9 @@ const COMMON_PASSWORDS = new Set([
   'michael1', 'jordan23', 'jessica1', 'michelle', 'robert12',
 ])
 
-// Schema bersama untuk password baru pada register/reset/change.
-// Min 8 karakter (NIST SP 800-63B). Max 128 untuk mencegah DoS bcrypt.
-// LoginSchema TIDAK memakai ini — user legacy mungkin punya password pendek.
+// Shared schema for new passwords in register/reset/change flows.
+// Min 8 chars (NIST SP 800-63B). Max 128 to prevent bcrypt DoS.
+// LoginSchema does NOT use this — legacy users may have shorter passwords.
 const passwordField = z
   .string()
   .min(8, 'Password minimal 8 karakter')

@@ -3,8 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { bloodPressureSchema } from '@/lib/validations'
 import { calculateCategory } from '@/lib/blood-pressure'
+import { isDemoEmail, checkDemoRateLimit } from '@/lib/demo'
 import type { BloodPressureRecord } from '@/types/blood-pressure.types'
 
 export async function addBloodPressureRecord(formData: FormData) {
@@ -14,6 +16,12 @@ export async function addBloodPressureRecord(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized' }
+  }
+
+  // Rate limit demo user mutations by IP
+  const rateLimitResult = await checkDemoRateLimit(user.email, 'record')
+  if (rateLimitResult.error) {
+    return { error: rateLimitResult.error }
   }
 
   // Validate input
@@ -36,21 +44,54 @@ export async function addBloodPressureRecord(formData: FormData) {
   // Calculate category
   const category = calculateCategory(systolic, diastolic)
 
-  // Insert record
-  const { error } = await supabase
-    .from('blood_pressure_records')
-    .insert({
-      user_id: user.id,
-      systolic,
-      diastolic,
-      pulse,
-      category,
-      notes,
-      measured_at,
-    })
+  // For demo users: use atomic RPC (hard cap check + insert in one DB transaction)
+  // to eliminate the race condition between count-check and insert. The RPC is
+  // granted only to service_role, so it must be called via the admin client;
+  // otherwise demo credentials (public) could bypass the per-IP rate limit.
+  if (isDemoEmail(user.email)) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('addBloodPressureRecord: SUPABASE_SERVICE_ROLE_KEY is not set')
+      return { error: 'Konfigurasi server tidak lengkap. Silakan coba lagi nanti.' }
+    }
+    const adminClient = createAdminClient()
+    const { data: rpcResult, error: rpcError } = await adminClient.rpc(
+      'insert_bp_record_atomic',
+      {
+        p_user_id: user.id,
+        p_systolic: systolic,
+        p_diastolic: diastolic,
+        p_pulse: pulse ?? null,
+        p_category: category,
+        p_notes: notes ?? null,
+        p_measured_at: measured_at,
+      }
+    )
 
-  if (error) {
-    return { error: error.message }
+    if (rpcError) {
+      console.error('Atomic insert RPC error:', rpcError)
+      return { error: rpcError.message }
+    }
+
+    if (rpcResult?.error) {
+      return { error: rpcResult.error }
+    }
+  } else {
+    // Regular user — use standard Supabase insert
+    const { error } = await supabase
+      .from('blood_pressure_records')
+      .insert({
+        user_id: user.id,
+        systolic,
+        diastolic,
+        pulse,
+        category,
+        notes,
+        measured_at,
+      })
+
+    if (error) {
+      return { error: error.message }
+    }
   }
 
   revalidatePath('/dashboard')
@@ -65,6 +106,12 @@ export async function updateBloodPressureRecord(id: string, formData: FormData) 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized' }
+  }
+
+  // Rate limit demo user mutations by IP
+  const rateLimitResult = await checkDemoRateLimit(user.email, 'record')
+  if (rateLimitResult.error) {
+    return { error: rateLimitResult.error }
   }
 
   // Validate input
@@ -118,6 +165,12 @@ export async function deleteBloodPressureRecord(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'Unauthorized' }
+  }
+
+  // Rate limit demo user mutations by IP
+  const rateLimitResult = await checkDemoRateLimit(user.email, 'record')
+  if (rateLimitResult.error) {
+    return { error: rateLimitResult.error }
   }
 
   // Soft delete (set deleted_at)
@@ -209,7 +262,7 @@ export async function getBloodPressureRecordsPaginated(
     .is('deleted_at', null)
 
   if (options.startDate) {
-    // awal hari dalam ISO (lokal)
+    // start of day in ISO (local)
     const start = new Date(options.startDate)
     start.setHours(0, 0, 0, 0)
     query = query.gte('measured_at', start.toISOString())
@@ -315,6 +368,12 @@ export async function batchImportBloodPressureRecords(
     return { success: 0, failed: records.length, errors: [{ row: 0, message: 'Unauthorized' }] }
   }
 
+  // Rate limit demo user mutations by IP
+  const rateLimitResult = await checkDemoRateLimit(user.email, 'record')
+  if (rateLimitResult.error) {
+    return { success: 0, failed: records.length, errors: [{ row: 0, message: rateLimitResult.error }] }
+  }
+
   const validRows: Array<{
     user_id: string
     systolic: number
@@ -360,12 +419,49 @@ export async function batchImportBloodPressureRecords(
     return { success: 0, failed: records.length, errors }
   }
 
-  const { error } = await supabase
-    .from('blood_pressure_records')
-    .insert(validRows)
+  // For demo users: use atomic batch RPC (hard cap check + insert in one DB
+  // transaction) to eliminate the race condition. The RPC is granted only to
+  // service_role, so it must be called via the admin client.
+  if (isDemoEmail(user.email)) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('batchImportBloodPressureRecords: SUPABASE_SERVICE_ROLE_KEY is not set')
+      return { success: 0, failed: records.length, errors: [{ row: 0, message: 'Konfigurasi server tidak lengkap.' }] }
+    }
+    const adminClient = createAdminClient()
+    const recordsJson = validRows.map((r) => ({
+      systolic: r.systolic,
+      diastolic: r.diastolic,
+      pulse: r.pulse,
+      category: r.category,
+      notes: r.notes,
+      measured_at: r.measured_at,
+    }))
 
-  if (error) {
-    return { success: 0, failed: records.length, errors: [{ row: 0, message: error.message }] }
+    const { data: rpcResult, error: rpcError } = await adminClient.rpc(
+      'batch_insert_bp_records_atomic',
+      {
+        p_user_id: user.id,
+        p_records: recordsJson,
+      }
+    )
+
+    if (rpcError) {
+      console.error('Batch atomic insert RPC error:', rpcError)
+      return { success: 0, failed: records.length, errors: [{ row: 0, message: rpcError.message }] }
+    }
+
+    if (rpcResult?.error) {
+      return { success: 0, failed: records.length, errors: [{ row: 0, message: rpcResult.error }] }
+    }
+  } else {
+    // Regular user — use standard Supabase insert
+    const { error } = await supabase
+      .from('blood_pressure_records')
+      .insert(validRows)
+
+    if (error) {
+      return { success: 0, failed: records.length, errors: [{ row: 0, message: error.message }] }
+    }
   }
 
   revalidatePath('/dashboard')

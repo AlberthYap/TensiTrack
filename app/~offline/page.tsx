@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Activity, RefreshCw, WifiOff } from 'lucide-react'
+import { ReloadButton } from '@/components/reload-button'
+import { Activity, WifiOff } from 'lucide-react'
 import Link from 'next/link'
 
 export const dynamic = 'force-static'
@@ -46,25 +47,15 @@ export default function OfflinePage() {
           </ul>
 
           <div className="flex gap-2 flex-wrap">
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="flex-1 min-w-[120px]"
-            >
-              <Link href="/" className="inline-flex items-center gap-1.5">
-                <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
-                Coba lagi
-              </Link>
-            </Button>
+            <ReloadButton />
             <Button
               asChild
               size="sm"
               className="flex-1 min-w-[120px] bg-blue-600 hover:bg-blue-700"
             >
-              <Link href="/dashboard">
+              <Link href="/" aria-label="Kembali ke beranda">
                 <Activity className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-                Dashboard
+                Beranda
               </Link>
             </Button>
           </div>

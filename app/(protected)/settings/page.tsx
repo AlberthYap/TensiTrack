@@ -9,7 +9,7 @@ import {
 import { ProfileForm } from '@/components/features/settings/profile-form'
 import { ChangePasswordForm } from '@/components/features/settings/change-password-form'
 import { DeleteAccountDialog } from '@/components/features/settings/delete-account-dialog'
-import { AlertTriangle, Lock, Settings as SettingsIcon, Sparkles, User } from 'lucide-react'
+import { AlertTriangle, Lock, Settings as SettingsIcon, Sparkles, User, Info } from 'lucide-react'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 
 export const dynamic = 'force-dynamic'
@@ -27,9 +27,11 @@ export default async function SettingsPage() {
   // Fetch profile data
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, date_of_birth, email')
+    .select('full_name, date_of_birth, email, is_demo')
     .eq('id', user.id)
     .maybeSingle()
+
+  const isDemoUser = profile?.is_demo === true
 
   const initialData = {
     full_name:
@@ -84,9 +86,40 @@ export default async function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <ProfileForm initialData={initialData} />
+            <ProfileForm initialData={initialData} disabled={isDemoUser} />
           </CardContent>
         </Card>
+
+        {/* Demo Account Info */}
+        {isDemoUser && (
+          <Card className="overflow-hidden border-amber-200 dark:border-amber-800 animate-fade-in-up">
+            <CardHeader className="border-b border-amber-100 dark:border-amber-900 bg-gradient-to-r from-amber-50/50 to-yellow-50/50 dark:from-amber-950/20 dark:to-yellow-950/20">
+              <CardTitle className="flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-500 shadow-md">
+                  <Info className="w-4 h-4 text-white" />
+                </span>
+                <span>
+                  Akun Demo
+                  <span className="block text-xs font-normal text-gray-500 dark:text-gray-400 mt-0.5">
+                    Informasi penting tentang akun percobaan ini
+                  </span>
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-3">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Anda sedang menggunakan akun demo. Akun ini ditujukan untuk
+                mencoba fitur aplikasi tanpa perlu mendaftar.
+              </p>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 list-disc list-inside space-y-1">
+                <li>Email: <span className="font-mono">guest@tensitrack.com</span></li>
+                <li>Password: <span className="font-mono">guest@tensitrack.com</span></li>
+                <li>Data yang Anda masukkan akan otomatis dihapus setelah 24 jam.</li>
+                <li>Password dan penghapusan akun dinonaktifkan untuk akun demo.</li>
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Change Password Card */}
         <Card className="overflow-hidden animate-fade-in-up">
@@ -107,7 +140,13 @@ export default async function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <ChangePasswordForm />
+            {isDemoUser ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Pengubahan password dinonaktifkan untuk akun demo.
+              </p>
+            ) : (
+              <ChangePasswordForm />
+            )}
           </CardContent>
         </Card>
 
@@ -130,18 +169,30 @@ export default async function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
-            <div className="flex items-center justify-between gap-4 p-4 border-2 border-red-200 dark:border-red-800 rounded-xl bg-red-50/30 dark:bg-red-950/20 hover:bg-red-50/60 dark:hover:bg-red-950/30 transition-colors">
-              <div>
+            {isDemoUser ? (
+              <div className="p-4 border-2 border-amber-200 dark:border-amber-800 rounded-xl bg-amber-50/30 dark:bg-amber-950/20">
                 <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
-                  Hapus Akun
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  Akun Demo
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Semua data, catatan tekanan darah, dan link share akan dihapus permanen.
+                  Akun demo bersifat publik dan tidak dapat dihapus.
                 </p>
               </div>
-              <DeleteAccountDialog />
-            </div>
+            ) : (
+              <div className="flex items-center justify-between gap-4 p-4 border-2 border-red-200 dark:border-red-800 rounded-xl bg-red-50/30 dark:bg-red-950/20 hover:bg-red-50/60 dark:hover:bg-red-950/30 transition-colors">
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                    Hapus Akun
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Semua data, catatan tekanan darah, dan link share akan dihapus permanen.
+                  </p>
+                </div>
+                <DeleteAccountDialog />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -14,9 +14,10 @@ interface ProfileFormProps {
     email: string
     date_of_birth?: string | null
   }
+  disabled?: boolean
 }
 
-export function ProfileForm({ initialData }: ProfileFormProps) {
+export function ProfileForm({ initialData, disabled }: ProfileFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -68,10 +69,11 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
           name="full_name"
           type="text"
           defaultValue={initialData.full_name}
-          required
+          required={!disabled}
           autoComplete="name"
           minLength={2}
           maxLength={100}
+          disabled={disabled}
         />
       </div>
 
@@ -82,22 +84,23 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
           name="date_of_birth"
           type="date"
           defaultValue={initialData.date_of_birth || ''}
+          disabled={disabled}
         />
         <p className="text-xs text-gray-500 dark:text-gray-400">
           Opsional. Dipakai untuk analisis kelompok umur.
         </p>
       </div>
 
-      <SubmitButton />
+      <SubmitButton disabled={disabled} />
     </form>
   )
 }
 
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled?: boolean }) {
   const { pending } = useFormStatus()
 
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending || disabled}>
       {pending ? 'Menyimpan...' : 'Simpan Perubahan'}
     </Button>
   )

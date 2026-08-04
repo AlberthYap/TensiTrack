@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+// Service role key needed by demo share token generation (admin client + atomic RPC)
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+
 // Build a shared mock client that we can mutate per-test
 const mockRpc = vi.fn()
 const mockFrom = vi.fn()
+const mockGetUser = vi.fn()
+const mockInsert = vi.fn()
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
@@ -11,7 +16,52 @@ vi.mock('@/lib/supabase/admin', () => ({
   }),
 }))
 
-import { validateShareToken } from '@/app/actions/share'
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: () => ({
+    auth: { getUser: mockGetUser },
+    from: mockFrom,
+  }),
+}))
+
+vi.mock('@/lib/rate-limit', () => ({
+  getClientIp: vi.fn().mockResolvedValue('127.0.0.1'),
+  checkAuthRateLimit: vi.fn().mockResolvedValue({ allowed: true, error: null }),
+}))
+
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+}))
+
+vi.mock('@/lib/share-internal-queries', () => ({
+  getMonthlyStatsByUserId: vi.fn().mockResolvedValue(null),
+  getRecordsByUserId: vi.fn().mockResolvedValue({
+    data: [],
+    total: 0,
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+    error: null,
+  }),
+  get30DayChartDataByUserId: vi.fn().mockResolvedValue([]),
+  getCategoryStatsByUserId: vi.fn().mockResolvedValue({ total: 0, items: [] }),
+  getTrendComparisonByUserId: vi.fn().mockResolvedValue({
+    current: { startDate: '', endDate: '', averageSystolic: 0, averageDiastolic: 0, readingCount: 0 },
+    previous: { startDate: '', endDate: '', averageSystolic: 0, averageDiastolic: 0, readingCount: 0 },
+    systolicChange: 0,
+    diastolicChange: 0,
+    systolicTrend: 'stable',
+    diastolicTrend: 'stable',
+  }),
+}))
+
+import {
+  validateShareToken,
+  generateShareToken,
+  revokeShareToken,
+  deleteShareToken,
+  getMonthlyStatsByShareToken,
+} from '@/app/actions/share'
+import { checkAuthRateLimit } from '@/lib/rate-limit'
 
 describe('validateShareToken', () => {
   beforeEach(() => {
@@ -156,5 +206,198 @@ describe('validateShareToken', () => {
     const result = await validateShareToken('any-token')
     expect(result.error).toBe('connection refused')
     expect(result.data).toBeNull()
+  })
+})
+
+describe('shareToken demo rate limiting', () => {
+  const mockSingle = vi.fn()
+  const mockSelect = vi.fn()
+  const mockCountEq = vi.fn()
+  const mockUpdate = vi.fn()
+  const mockDelete = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSingle.mockResolvedValue({
+      data: { id: 'share-1', token: 'abc123' },
+      error: null,
+    })
+    // Supabase query builder pattern: select().eq(...).eq(...)
+    mockCountEq.mockResolvedValue({ count: 0, error: null })
+    mockSelect.mockReturnValue({
+      single: mockSingle,
+      eq: vi.fn().mockImplementation(() => ({
+        eq: mockCountEq,
+        single: mockSingle,
+      })),
+    })
+    mockInsert.mockReturnValue({ select: mockSelect })
+    mockUpdate.mockResolvedValue({ error: null })
+    mockDelete.mockResolvedValue({ error: null })
+    mockFrom.mockReturnValue({
+      insert: mockInsert,
+      update: mockUpdate,
+      delete: mockDelete,
+      select: mockSelect,
+    })
+  })
+
+  it('returns error when demo user hits rate limit on generate', async () => {
+    vi.mocked(checkAuthRateLimit).mockResolvedValueOnce({ allowed: false, error: null })
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const result = await generateShareToken(7, 5)
+    expect(result?.error).toMatch(/Batas demo tercapai/)
+    expect(checkAuthRateLimit).toHaveBeenCalledWith(
+      'demo:share:127.0.0.1',
+      expect.any(Number),
+      expect.any(Number)
+    )
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it('returns error when demo user hits rate limit on revoke', async () => {
+    vi.mocked(checkAuthRateLimit).mockResolvedValueOnce({ allowed: false, error: null })
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const result = await revokeShareToken('token-id-1')
+    expect(result?.error).toMatch(/Batas demo tercapai/)
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('returns error when demo user hits rate limit on delete', async () => {
+    vi.mocked(checkAuthRateLimit).mockResolvedValueOnce({ allowed: false, error: null })
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const result = await deleteShareToken('token-id-1')
+    expect(result?.error).toMatch(/Batas demo tercapai/)
+    expect(mockDelete).not.toHaveBeenCalled()
+  })
+
+  it('allows demo user to create share token when under rate limit', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    mockRpc.mockResolvedValueOnce({
+      data: { success: true, id: 'new-share-1' },
+      error: null,
+    })
+
+    const result = await generateShareToken(7, 5)
+    expect(result?.error).toBeUndefined()
+    // Demo users use atomic RPC via admin client, not regular insert
+    expect(mockInsert).not.toHaveBeenCalled()
+    expect(mockRpc).toHaveBeenCalledWith('create_share_token_atomic', {
+      p_user_id: 'demo-1',
+      p_token: expect.any(String),
+      p_expires_at: expect.any(String),
+      p_max_views: 5,
+    })
+  })
+
+  it('does not apply demo rate limit for regular users', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'user@example.com' } },
+    })
+
+    const result = await generateShareToken(7, 5)
+    expect(result?.error).toBeUndefined()
+    expect(checkAuthRateLimit).not.toHaveBeenCalled()
+    // Regular users use standard insert
+    expect(mockInsert).toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('returns error when demo user reaches hard cap on active share tokens', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    // Atomic RPC returns hard cap error
+    mockRpc.mockResolvedValueOnce({
+      data: { error: 'Batas demo tercapai. Silakan buat akun gratis untuk melanjutkan.' },
+      error: null,
+    })
+
+    const result = await generateShareToken(7, 5)
+    expect(result?.error).toMatch(/Batas demo tercapai/)
+    expect(mockInsert).not.toHaveBeenCalled()
+    expect(mockRpc).toHaveBeenCalledWith('create_share_token_atomic', {
+      p_user_id: 'demo-1',
+      p_token: expect.any(String),
+      p_expires_at: expect.any(String),
+      p_max_views: 5,
+    })
+  })
+
+  it('returns error when demo user RPC fails at the database level', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'database connection error' },
+    })
+
+    const result = await generateShareToken(7, 5)
+    expect(result?.error).toBe('database connection error')
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it('returns config error when SUPABASE_SERVICE_ROLE_KEY is unset for demo', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'demo-1', email: 'guest@tensitrack.com' } },
+    })
+
+    const saved = process.env.SUPABASE_SERVICE_ROLE_KEY
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    try {
+      const result = await generateShareToken(7, 5)
+      expect(result?.error).toMatch(/Konfigurasi server tidak lengkap/)
+      expect(mockInsert).not.toHaveBeenCalled()
+      expect(mockRpc).not.toHaveBeenCalled()
+    } finally {
+      if (saved) process.env.SUPABASE_SERVICE_ROLE_KEY = saved
+    }
+  })
+})
+
+describe('shareToken internal getters', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: 'tok-1',
+        user_id: 'user-123',
+        token: 'valid-token',
+        expires_at: null,
+        is_active: true,
+        view_count: 7,
+        max_views: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      },
+      error: null,
+    })
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({ single: mockSingle }),
+    })
+    mockFrom.mockReturnValue({ select: mockSelect })
+  })
+
+  it('does not increment view_count when using internal getters', async () => {
+    await getMonthlyStatsByShareToken('valid-token')
+    // Internal getters harusnya memakai resolveShareToken, bukan validateShareToken,
+    // sehingga RPC increment_share_token_view tidak boleh dipanggil.
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 })
