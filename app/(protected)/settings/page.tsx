@@ -27,7 +27,7 @@ export default async function SettingsPage() {
   // Fetch profile data
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, date_of_birth, email, is_demo')
+    .select('full_name, date_of_birth, email, is_demo, target_systolic, target_diastolic')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -41,6 +41,8 @@ export default async function SettingsPage() {
       'User',
     email: profile?.email || user.email || '',
     date_of_birth: profile?.date_of_birth || null,
+    target_systolic: profile?.target_systolic ?? null,
+    target_diastolic: profile?.target_diastolic ?? null,
   }
 
   return (

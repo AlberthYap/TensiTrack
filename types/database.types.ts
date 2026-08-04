@@ -16,6 +16,8 @@ export interface Database {
           full_name: string | null
           date_of_birth: string | null
           is_demo: boolean | null
+          target_systolic: number | null
+          target_diastolic: number | null
           created_at: string
           updated_at: string
         }
@@ -25,6 +27,8 @@ export interface Database {
           full_name?: string | null
           date_of_birth?: string | null
           is_demo?: boolean | null
+          target_systolic?: number | null
+          target_diastolic?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -34,6 +38,8 @@ export interface Database {
           full_name?: string | null
           date_of_birth?: string | null
           is_demo?: boolean | null
+          target_systolic?: number | null
+          target_diastolic?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -77,6 +83,41 @@ export interface Database {
           created_at?: string
           updated_at?: string
           deleted_at?: string | null
+        }
+      }
+      medications: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          dosage: string | null
+          taken: boolean
+          taken_date: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          dosage?: string | null
+          taken?: boolean
+          taken_date?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          dosage?: string | null
+          taken?: boolean
+          taken_date?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
         }
       }
     }

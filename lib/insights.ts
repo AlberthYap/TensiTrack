@@ -1,5 +1,5 @@
 import { calculateCategory } from '@/lib/blood-pressure'
-import type { TrendComparison } from '@/types/blood-pressure.types'
+import type { TrendComparison, BloodPressureRecord } from '@/types/blood-pressure.types'
 
 /**
  * Tone category for an insight — drives icon + color in the UI.
@@ -187,5 +187,118 @@ export function generateTrendInsights(c: TrendComparison): Insight[] {
   }
 
   // Cap at 2 — preserve cognitive load budget for elder users.
+  return insights.slice(0, 2)
+}
+
+// ---------------------------------------------------------------------------
+// Time-of-day pattern insights
+// ---------------------------------------------------------------------------
+
+const MORNING_START = 5  // 05:00
+const MORNING_END = 11   // before 11:00
+const EVENING_START = 17 // 17:00
+const EVENING_END = 22   // before 22:00
+
+interface TimeBucket {
+  systolicSum: number
+  diastolicSum: number
+  count: number
+}
+
+/**
+ * Classify a record into a time-of-day bucket based on measured_at hour.
+ * Only recognizes morning (05:00-10:59) and evening (17:00-21:59).
+ * Other times are ignored for pattern comparison.
+ */
+function getTimeBucket(hour: number): 'morning' | 'evening' | null {
+  if (hour >= MORNING_START && hour < MORNING_END) return 'morning'
+  if (hour >= EVENING_START && hour < EVENING_END) return 'evening'
+  return null
+}
+
+/**
+ * Generate pattern insights from raw weekly records.
+ * Focuses on time-of-day consistency and measurement rhythm.
+ *
+ * This is complementary to `generateTrendInsights` (which compares
+ * week-over-week averages). Pattern insights help users understand
+ * their measurement habits and diurnal BP variations.
+ */
+export function generatePatternInsights(
+  records: BloodPressureRecord[]
+): Insight[] {
+  const insights: Insight[] = []
+
+  if (!records || records.length === 0) return insights
+
+  const morning: TimeBucket = { systolicSum: 0, diastolicSum: 0, count: 0 }
+  const evening: TimeBucket = { systolicSum: 0, diastolicSum: 0, count: 0 }
+
+  for (const r of records) {
+    // Use UTC hour so behaviour is consistent across server timezones.
+    // Records are stored as TIMESTAMPTZ (UTC) in Supabase.
+    const hour = new Date(r.measured_at).getUTCHours()
+    const bucket = getTimeBucket(hour)
+    if (bucket === 'morning') {
+      morning.systolicSum += r.systolic
+      morning.diastolicSum += r.diastolic
+      morning.count++
+    } else if (bucket === 'evening') {
+      evening.systolicSum += r.systolic
+      evening.diastolicSum += r.diastolic
+      evening.count++
+    }
+  }
+
+  // Insight A: morning-vs-evening comparison (only when both have ≥ 3 readings)
+  if (morning.count >= 3 && evening.count >= 3) {
+    const mSys = Math.round(morning.systolicSum / morning.count)
+    const mDia = Math.round(morning.diastolicSum / morning.count)
+    const eSys = Math.round(evening.systolicSum / evening.count)
+    const eDia = Math.round(evening.diastolicSum / evening.count)
+
+    const sysDiff = mSys - eSys
+    const diaDiff = mDia - eDia
+
+    const higher = sysDiff > 0 ? 'lebih tinggi' : 'lebih rendah'
+    const absSysDiff = Math.abs(sysDiff)
+    const absDiaDiff = Math.abs(diaDiff)
+
+    if (absSysDiff >= 5 || absDiaDiff >= 5) {
+      const tone: InsightTone =
+        mSys >= 130 || mDia >= 80 ? 'caution' : 'neutral'
+
+      insights.push({
+        id: 'morning-evening',
+        tone,
+        icon: 'info',
+        title: `Pagi ${higher} dari malam`,
+        body:
+          `Rata-rata pagi ${mSys}/${mDia} mmHg (${morning.count}x) vs malam ${eSys}/${eDia} mmHg (${evening.count}x). ` +
+          'Tekanan darah umumnya lebih tinggi di pagi hari — ini normal. Usahakan mengukur di jam yang sama setiap hari.',
+      })
+    }
+  }
+
+  // Insight B: measurement rhythm — only when few unique days suggest skipping
+  const uniqueDays = new Set(
+    records.map((r) => {
+      // Use UTC date to stay timezone-consistent
+      const d = new Date(r.measured_at)
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+    })
+  )
+  const totalDays = 7
+  if (uniqueDays.size <= 3 && records.length >= 3) {
+    insights.push({
+      id: 'few-days',
+      tone: 'neutral',
+      icon: 'info',
+      title: `${uniqueDays.size} dari ${totalDays} hari tercatat`,
+      body:
+        `Minggu ini Anda mencatat di ${uniqueDays.size} hari. Idealnya ukur setiap hari di jam yang sama (pagi sebelum makan/obat dan malam sebelum tidur) untuk pola yang lengkap.`,
+    })
+  }
+
   return insights.slice(0, 2)
 }

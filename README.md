@@ -58,6 +58,7 @@ npm install
      - `006_share_rate_limits.sql`
      - `007_auth_rate_limits.sql`
      - `008_add_demo_user.sql`
+     - `009_medications_and_targets.sql`
 
    **Note**: After migration `008`, run the seed script to create the demo user:
    ```bash
@@ -176,8 +177,17 @@ tensi/
 - ✅ **CSV Import** with preview & validation
 - ✅ Template download for CSV format
 
+#### Medication Tracking
+- ✅ Daily medication checklist (add, toggle, delete)
+- ✅ Quick-add form with name & dosage
+- ✅ Visual all-done celebration when all meds taken
+
+#### Health Goals
+- ✅ Target blood pressure setting in profile
+- ✅ Weekly progress bar vs target on dashboard
+
 #### Settings
-- ✅ Update profile (name, date of birth)
+- ✅ Update profile (name, date of birth, target BP)
 - ✅ Change password
 - ✅ Delete account (soft delete)
 
@@ -197,11 +207,18 @@ tensi/
 
 - [ ] Reminder System (push notification)
 - [ ] Weekly Summary Email
-- [ ] PWA Support (offline mode)
 - [ ] Smart Insights (AI recommendations)
 - [ ] Multi-user (family accounts)
 - [ ] Integration with Apple Health / Google Fit
-- [ ] Medication tracking
+
+Already delivered beyond MVP:
+- [x] PWA Support (offline mode)
+- [x] Demo account with 24h auto-cleanup
+- [x] WhatsApp sharing
+- [x] Medication tracking
+- [x] Weekly summary card
+- [x] Target BP goals
+- [x] Pattern insights (morning vs evening)
 
 ## 🏥 Blood Pressure Categories
 

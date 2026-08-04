@@ -13,6 +13,8 @@ interface ProfileFormProps {
     full_name: string
     email: string
     date_of_birth?: string | null
+    target_systolic?: number | null
+    target_diastolic?: number | null
   }
   disabled?: boolean
 }
@@ -89,6 +91,43 @@ export function ProfileForm({ initialData, disabled }: ProfileFormProps) {
         <p className="text-xs text-gray-500 dark:text-gray-400">
           Opsional. Dipakai untuk analisis kelompok umur.
         </p>
+      </div>
+
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+          Target Tekanan Darah
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+          Tetapkan target tekanan darah Anda. Dashboard akan menampilkan progress mingguan terhadap target ini.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="target_systolic">Target Sistolik (mmHg)</Label>
+            <Input
+              id="target_systolic"
+              name="target_systolic"
+              type="number"
+              min={50}
+              max={250}
+              defaultValue={initialData.target_systolic ?? ''}
+              placeholder="120"
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="target_diastolic">Target Diastolik (mmHg)</Label>
+            <Input
+              id="target_diastolic"
+              name="target_diastolic"
+              type="number"
+              min={30}
+              max={150}
+              defaultValue={initialData.target_diastolic ?? ''}
+              placeholder="80"
+              disabled={disabled}
+            />
+          </div>
+        </div>
       </div>
 
       <SubmitButton disabled={disabled} />

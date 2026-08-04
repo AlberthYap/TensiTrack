@@ -5,9 +5,12 @@ import { LatestReading } from '@/components/features/dashboard/latest-reading'
 import { QuickStats } from '@/components/features/dashboard/quick-stats'
 import { WeeklyChart } from '@/components/features/dashboard/weekly-chart'
 import { QuickAddButton } from '@/components/features/dashboard/quick-add-button'
+import { WeeklySummaryCard } from '@/components/features/dashboard/weekly-summary-card'
 import { DashboardInsightWidget } from '@/components/features/dashboard/insight-widget'
+import { MedicationTracker } from '@/components/features/dashboard/medication-tracker'
+import { TargetProgressCard } from '@/components/features/dashboard/target-progress-card'
 import { EmptyState } from '@/components/ui/empty-state'
-import { generateTrendInsights, type Insight } from '@/lib/insights'
+import { generateTrendInsights, generatePatternInsights, type Insight } from '@/lib/insights'
 import { getTrendComparison } from '@/app/actions/analytics'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -58,12 +61,31 @@ export default async function DashboardPage() {
       }
     : null
 
+  // Fetch today's medications
+  const { data: medications } = await supabase
+    .from('medications')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('taken_date', new Date().toISOString().slice(0, 10))
+    .order('created_at', { ascending: true })
+
+  // Fetch target BP from profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('target_systolic, target_diastolic')
+    .eq('id', user.id)
+    .maybeSingle()
+
   // Compute weekly insight (this-week vs last-week) for the dashboard widget.
   // Defensive try/catch so a transient failure never breaks the page.
   let insights: Insight[] = []
   try {
     const trendComparison = await getTrendComparison(7)
-    insights = generateTrendInsights(trendComparison)
+    const trendInsights = generateTrendInsights(trendComparison)
+    const patternInsights = generatePatternInsights(
+      (weeklyRecords ?? []) as Parameters<typeof generatePatternInsights>[0]
+    )
+    insights = [...trendInsights, ...patternInsights]
   } catch (error) {
     console.error('Failed to compute weekly insights:', error)
     insights = []
@@ -113,10 +135,37 @@ export default async function DashboardPage() {
         <DashboardInsightWidget insights={insights} />
       )}
 
+      {/* Weekly Summary Card */}
+      <WeeklySummaryCard
+        weeklyAverage={weeklyAverage}
+        recordCount={weeklyRecords?.length || 0}
+        records={
+          (weeklyRecords as unknown as Parameters<
+            typeof WeeklySummaryCard
+          >[0]['records']) || []
+        }
+      />
+
+      {/* Target Progress */}
+      <TargetProgressCard
+        targetSystolic={profile?.target_systolic ?? null}
+        targetDiastolic={profile?.target_diastolic ?? null}
+        weeklyAverage={weeklyAverage}
+      />
+
       {/* Quick Stats */}
       <QuickStats
         weeklyAverage={weeklyAverage}
         totalRecords={weeklyRecords?.length || 0}
+      />
+
+      {/* Medication Tracker */}
+      <MedicationTracker
+        medications={
+          (medications as unknown as Parameters<
+            typeof MedicationTracker
+          >[0]['medications']) || []
+        }
       />
 
       {/* Weekly Chart */}

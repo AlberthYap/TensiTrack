@@ -10,7 +10,7 @@ import { checkAuthRateLimit, getClientIp } from '@/lib/rate-limit'
 export const DEMO_EMAIL = 'guest@tensitrack.com'
 export const DEMO_PASSWORD = 'guest@tensitrack.com'
 
-export const DEMO_MUTATE_MAX = 30
+export const DEMO_MUTATE_MAX = 15
 export const DEMO_MUTATE_WINDOW_SECONDS = 60 * 60 // 1 hour
 export const DEMO_MUTATE_LOCKOUT_MESSAGE =
   'Batas demo tercapai. Silakan buat akun gratis untuk melanjutkan.'

@@ -17,6 +17,16 @@ const updateProfileSchema = z.object({
       (val) => !val || val === '' || !isNaN(Date.parse(val)),
       'Tanggal lahir tidak valid'
     ),
+  target_systolic: z
+    .preprocess(
+      (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+      z.number().int().min(50).max(250).nullable().optional()
+    ),
+  target_diastolic: z
+    .preprocess(
+      (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+      z.number().int().min(30).max(150).nullable().optional()
+    ),
 })
 
 const changePasswordSchema = z
@@ -52,19 +62,23 @@ export async function updateProfile(formData: FormData) {
   const validatedFields = updateProfileSchema.safeParse({
     full_name: formData.get('full_name'),
     date_of_birth: dobStr,
+    target_systolic: formData.get('target_systolic'),
+    target_diastolic: formData.get('target_diastolic'),
   })
 
   if (!validatedFields.success) {
     return { error: validatedFields.error.issues[0].message }
   }
 
-  const { full_name, date_of_birth } = validatedFields.data
+  const { full_name, date_of_birth, target_systolic, target_diastolic } = validatedFields.data
 
   const { error: profileError } = await supabase
     .from('profiles')
     .update({
       full_name,
       date_of_birth: date_of_birth || null,
+      target_systolic: target_systolic ?? null,
+      target_diastolic: target_diastolic ?? null,
     })
     .eq('id', user.id)
 

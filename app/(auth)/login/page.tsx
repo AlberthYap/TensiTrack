@@ -1,6 +1,5 @@
 import { CheckCircle2, LogIn, Shield } from 'lucide-react'
 import { LoginForm } from '@/components/features/auth/login-form'
-import { DemoLoginButton } from '@/components/features/auth/demo-login-button'
 
 interface LoginPageProps {
   searchParams: {
@@ -43,24 +42,6 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
         )}
 
         <LoginForm />
-
-        {/* Demo login divider */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200 dark:border-gray-700" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white dark:bg-gray-900 px-2 text-gray-500 dark:text-gray-400">
-              atau
-            </span>
-          </div>
-        </div>
-
-        <DemoLoginButton />
-
-        <p className="mt-4 text-xs text-center text-gray-500 dark:text-gray-400">
-          Akun demo: data dihapus otomatis setelah 24 jam.
-        </p>
 
         {/* Security note */}
         <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">

@@ -17,6 +17,7 @@ import {
   QrCode,
   Loader2,
   Power,
+  MessageCircle,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import {
@@ -83,6 +84,25 @@ export function ShareDialog() {
     setCopiedToken(token)
     setTimeout(() => setCopiedToken(null), 2000)
   }
+
+  const handleWhatsAppShare = (url: string) => {
+    const message = encodeURIComponent(
+      `Lihat data tekanan darah saya:\n${url}\n\n— Dibagikan via Tensi Harian`
+    )
+    window.open(`https://wa.me/?text=${message}`, '_blank')
+  }
+
+  const whatsAppButton = (url: string) => (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => handleWhatsAppShare(url)}
+      title="Bagikan via WhatsApp"
+      className="hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-950"
+    >
+      <MessageCircle className="w-3 h-3" />
+    </Button>
+  )
 
   const handleRevoke = async (tokenId: string) => {
     if (confirm('Yakin ingin menonaktifkan link ini?')) {
@@ -216,6 +236,7 @@ export function ShareDialog() {
                       <Copy className="w-4 h-4" />
                     )}
                   </Button>
+                  {whatsAppButton(lastGeneratedUrl)}
                 </div>
 
                 {/* QR Code */}
@@ -359,6 +380,7 @@ export function ShareDialog() {
                         >
                           <ExternalLink className="w-3 h-3" />
                         </Button>
+                        {whatsAppButton(url)}
                         {token.is_active && !isExpired && !isMaxViews && (
                           <Button
                             variant="outline"

@@ -4,6 +4,7 @@ import { timingSafeEqual } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   registerSchema,
   loginSchema,
@@ -150,12 +151,22 @@ export async function login(formData: FormData) {
     }
   }
 
-  // Clean up demo data older than 24 hours on every demo login.
+  // Clean up demo data older than 24 hours, then seed sample data
+  // if the account is empty (gives the first visitor a populated dashboard).
   if (isDemoEmail(email)) {
     try {
       await supabase.rpc('cleanup_demo_data')
     } catch (cleanupError) {
       console.error('Demo cleanup error:', cleanupError)
+    }
+
+    try {
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const adminClient = createAdminClient()
+        await adminClient.rpc('seed_demo_sample_data')
+      }
+    } catch (seedError) {
+      console.error('Demo sample data seed error:', seedError)
     }
   }
 

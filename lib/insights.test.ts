@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { generateTrendInsights } from '@/lib/insights'
-import type { TrendComparison } from '@/types/blood-pressure.types'
+import { generateTrendInsights, generatePatternInsights } from '@/lib/insights'
+import type { TrendComparison, BloodPressureRecord } from '@/types/blood-pressure.types'
 
 function makeComparison(
   overrides: Partial<TrendComparison> = {}
@@ -274,3 +274,104 @@ describe('generateTrendInsights boundary cases', () => {
     expect(result[0].id).toBe('stable')
   })
 })
+
+// ---------------------------------------------------------------------------
+// generatePatternInsights tests
+// ---------------------------------------------------------------------------
+
+function makeRecord(overrides: Partial<BloodPressureRecord> = {}): BloodPressureRecord {
+  return {
+    id: 'r-1',
+    user_id: 'u-1',
+    systolic: 120,
+    diastolic: 80,
+    pulse: null,
+    category: 'normal',
+    notes: null,
+    measured_at: new Date('2026-08-04T07:00:00Z').toISOString(),
+    created_at: new Date('2026-08-04T07:00:00Z').toISOString(),
+    updated_at: new Date('2026-08-04T07:00:00Z').toISOString(),
+    deleted_at: null,
+    ...overrides,
+  } as BloodPressureRecord
+}
+
+describe('generatePatternInsights', () => {
+  it('returns empty array for no records', () => {
+    expect(generatePatternInsights([])).toHaveLength(0)
+  })
+
+  it('returns empty when neither morning nor evening has enough readings', () => {
+    const records = [
+      makeRecord({ measured_at: '2026-08-04T07:00:00Z', systolic: 120, diastolic: 80 }),
+      makeRecord({ measured_at: '2026-08-04T12:00:00Z', systolic: 122, diastolic: 82 }), // noon — ignored
+    ]
+    const result = generatePatternInsights(records)
+    // Only 1 morning, no evening — not enough for morning-evening comparison
+    // 2 unique days? Actually both are same day
+    expect(result.filter((i) => i.id === 'morning-evening')).toHaveLength(0)
+  })
+
+  it('detects morning-vs-evening difference when both have ≥ 3 readings', () => {
+    const records = [
+      // 3 morning readings (07:00)
+      makeRecord({ measured_at: '2026-08-02T07:00:00Z', systolic: 130, diastolic: 85 }),
+      makeRecord({ measured_at: '2026-08-03T07:00:00Z', systolic: 132, diastolic: 86 }),
+      makeRecord({ measured_at: '2026-08-04T07:00:00Z', systolic: 128, diastolic: 84 }),
+      // 3 evening readings (18:00)
+      makeRecord({ measured_at: '2026-08-02T18:00:00Z', systolic: 118, diastolic: 76 }),
+      makeRecord({ measured_at: '2026-08-03T18:00:00Z', systolic: 120, diastolic: 78 }),
+      makeRecord({ measured_at: '2026-08-04T18:00:00Z', systolic: 116, diastolic: 74 }),
+    ]
+    const result = generatePatternInsights(records)
+    const me = result.find((i) => i.id === 'morning-evening')
+    expect(me).toBeDefined()
+    expect(me!.title).toMatch(/lebih tinggi/)
+    expect(me!.body).toMatch(/pagi.*malam/)
+  })
+
+  it('returns few-days insight when only 3 or fewer unique days tracked', () => {
+    const records = [
+      makeRecord({ measured_at: '2026-08-04T07:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-04T18:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-04T20:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-03T07:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-02T07:00:00Z' }),
+    ]
+    const result = generatePatternInsights(records)
+    const fd = result.find((i) => i.id === 'few-days')
+    expect(fd).toBeDefined()
+    expect(fd!.title).toMatch(/3.*7.*hari/)
+  })
+
+  it('returns few-days with correct count for all 7 days', () => {
+    const records = [
+      makeRecord({ measured_at: '2026-08-01T07:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-02T07:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-03T07:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-04T07:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-05T07:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-06T07:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-07T07:00:00Z' }),
+    ]
+    const result = generatePatternInsights(records)
+    // 7 unique days → no few-days insight
+    expect(result.find((i) => i.id === 'few-days')).toBeUndefined()
+  })
+
+  it('caps output at 2 insights', () => {
+    // Many morning + evening + few days — should cap
+    const records = Array.from({ length: 10 }, (_, i) => {
+      const day = 1 + Math.floor(i / 2) // 2 readings per day, 5 days
+      return makeRecord({
+        measured_at: `2026-07-${String(30 + day).padStart(2, '0')}T0${7 + (i % 2) * 11}:00:00Z`,
+        systolic: 120 + i,
+        diastolic: 80 + (i % 3),
+      })
+    })
+    expect(generatePatternInsights(records).length).toBeLessThanOrEqual(2)
+  })
+})
+
+// Re-export for test file clarity
+export {}
