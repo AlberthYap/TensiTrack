@@ -6,6 +6,7 @@ import { QuickStats } from '@/components/features/dashboard/quick-stats'
 import { WeeklyChart } from '@/components/features/dashboard/weekly-chart'
 import { QuickAddButton } from '@/components/features/dashboard/quick-add-button'
 import { WeeklySummaryCard } from '@/components/features/dashboard/weekly-summary-card'
+import { StreakCard } from '@/components/features/dashboard/streak-card'
 import { DashboardInsightWidget } from '@/components/features/dashboard/insight-widget'
 import { MedicationTracker } from '@/components/features/dashboard/medication-tracker'
 import { TargetProgressCard } from '@/components/features/dashboard/target-progress-card'
@@ -16,6 +17,36 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 export const dynamic = 'force-dynamic'
+
+/** Count consecutive days (back from today) with at least one reading. */
+function computeStreak(records: Array<{ measured_at: string }>): number {
+  const dates = new Set(
+    records.map((r) => new Date(r.measured_at).toISOString().slice(0, 10))
+  )
+  let streak = 0
+  const today = new Date()
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    if (dates.has(key)) {
+      streak++
+    } else {
+      break
+    }
+  }
+  return streak
+}
+
+/** Days since the most recent reading (0 = today). */
+function computeDaysSinceLastReading(records: Array<{ measured_at: string }>): number {
+  if (records.length === 0) return 999
+  const lastDate = new Date(records[0].measured_at)
+  const today = new Date()
+  return Math.floor(
+    (today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+  )
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -75,6 +106,22 @@ export default async function DashboardPage() {
     .select('target_systolic, target_diastolic')
     .eq('id', user.id)
     .maybeSingle()
+
+  // Calculate streak: consecutive days with at least one reading.
+  // Fetch up to 365 days so the streak can count beyond a single month.
+  const oneYearAgo = new Date()
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+
+  const { data: streakRecords } = await supabase
+    .from('blood_pressure_records')
+    .select('measured_at')
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .gte('measured_at', oneYearAgo.toISOString())
+    .order('measured_at', { ascending: false })
+
+  const streak = computeStreak(streakRecords ?? [])
+  const daysSinceLastReading = computeDaysSinceLastReading(streakRecords ?? [])
 
   // Compute weekly insight (this-week vs last-week) for the dashboard widget.
   // Defensive try/catch so a transient failure never breaks the page.
@@ -152,6 +199,11 @@ export default async function DashboardPage() {
         targetDiastolic={profile?.target_diastolic ?? null}
         weeklyAverage={weeklyAverage}
       />
+
+      {/* Streak Card */}
+      {latestRecord && (
+        <StreakCard streak={streak} daysSinceLastReading={daysSinceLastReading} />
+      )}
 
       {/* Quick Stats */}
       <QuickStats
