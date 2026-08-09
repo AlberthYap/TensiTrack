@@ -106,3 +106,4 @@ docs/
 
 *.db-shm
 *.db-wal
+certificates

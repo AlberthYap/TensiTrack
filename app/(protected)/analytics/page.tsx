@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart3, Calendar, Info, LineChart, PieChart, Sparkles, TrendingUp, ArrowRight, ArrowDown, Minus } from 'lucide-react'
+import { Activity, BarChart3, Calendar, Info, LineChart, PieChart, Sparkles, TrendingUp, ArrowRight, ArrowDown, Minus } from 'lucide-react'
 import {
   getCategoryStats,
   getMonthlyStats,
@@ -17,8 +17,6 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Activity } from 'lucide-react'
-
 export const dynamic = 'force-dynamic'
 
 interface AnalyticsPageProps {

@@ -20,6 +20,7 @@ import {
 import { BloodPressureRecord } from '@/types/blood-pressure.types'
 import { calculateCategory } from '@/lib/blood-pressure'
 import { CategoryBadge } from '@/components/ui/category-badge'
+import { VoiceInput } from '@/components/ui/voice-input'
 
 const OFFLINE_FORM_KEY = 'tensi-offline-form'
 
@@ -29,14 +30,14 @@ const OFFLINE_FORM_KEY = 'tensi-offline-form'
  * request would really fail.
  */
 function useOnlineStatus(): boolean {
-  const [isOnline, setIsOnline] = useState<boolean>(
-    typeof navigator !== 'undefined' ? navigator.onLine : true,
-  )
+  // Always start true to match server render (SSR has no navigator).
+  // Sync to real value in useEffect below — never in useState initializer,
+  // because if the browser is offline during page load, navigator.onLine
+  // would return false and cause a hydration mismatch with the server.
+  const [isOnline, setIsOnline] = useState(true)
 
   useEffect(() => {
-    if (typeof navigator !== 'undefined') {
-      setIsOnline(navigator.onLine)
-    }
+    setIsOnline(navigator.onLine)
 
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
@@ -412,6 +413,18 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {!isEdit && (
+            <div className="md:col-span-2">
+              <VoiceInput
+                onResult={(sys, dia, pulse) => {
+                  handleFormChange('systolic', sys)
+                  handleFormChange('diastolic', dia)
+                  if (pulse) handleFormChange('pulse', pulse)
+                }}
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="systolic">
               Systolic (mmHg) <span className="text-red-500">*</span>
