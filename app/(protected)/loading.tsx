@@ -1,53 +1,57 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import {
+  Skeleton,
+  SkeletonHeader,
+  SkeletonStatCard,
+  SkeletonChart,
+  SkeletonTable,
+} from '@/components/ui/skeleton'
 
-export default function Loading() {
+/**
+ * Generic skeleton for all protected pages — dashboard, records, analytics,
+ * settings, etc. Shown instantly on route change while the server renders.
+ *
+ * The layout shell (Header + Sidebar) renders normally; only the page
+ * content is replaced with this skeleton.
+ */
+export default function ProtectedLoading() {
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header skeleton */}
-      <div>
-        <div className="h-9 w-48 bg-gray-200 dark:bg-gray-800 rounded-lg shimmer" />
-        <div className="h-4 w-72 bg-gray-200 dark:bg-gray-800 rounded-md mt-2 shimmer" />
+      {/* Title + subtitle */}
+      <SkeletonHeader />
+
+      {/* Stat cards row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <SkeletonStatCard />
+        <SkeletonStatCard />
+        <SkeletonStatCard />
+        <SkeletonStatCard />
       </div>
 
-      {/* Hero card skeleton */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-800 shimmer" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-32 bg-gray-200 dark:bg-gray-800 rounded shimmer" />
-              <div className="h-8 w-48 bg-gray-200 dark:bg-gray-800 rounded shimmer" />
-            </div>
+      {/* Large content area — chart, table, or form */}
+      <SkeletonChart height={280} />
+
+      {/* Secondary section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 space-y-3">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-3 w-56" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+        <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 space-y-3">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-3 w-32" />
+          <div className="space-y-2 pt-2">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-4/5" />
+            <Skeleton className="h-3 w-3/5" />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats grid skeleton */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[0, 1, 2].map((i) => (
-          <Card key={i}>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-800 shimmer" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 w-20 bg-gray-200 dark:bg-gray-800 rounded shimmer" />
-                  <div className="h-6 w-24 bg-gray-200 dark:bg-gray-800 rounded shimmer" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        </div>
       </div>
 
-      {/* Chart skeleton */}
-      <Card>
-        <CardHeader>
-          <div className="h-5 w-40 bg-gray-200 dark:bg-gray-800 rounded shimmer" />
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px] bg-gray-100 dark:bg-gray-800/50 rounded-lg shimmer" />
-        </CardContent>
-      </Card>
+      {/* Table skeleton */}
+      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
+        <SkeletonTable rows={5} columns={5} />
+      </div>
     </div>
   )
 }

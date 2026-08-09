@@ -1,146 +1,24 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, Heart, Sparkles } from 'lucide-react'
-import { LatestReading } from '@/components/features/dashboard/latest-reading'
-import { QuickStats } from '@/components/features/dashboard/quick-stats'
-import { WeeklyChart } from '@/components/features/dashboard/weekly-chart'
+import { Sparkles } from 'lucide-react'
+import { LatestReadingSection } from '@/components/features/dashboard/latest-reading-section'
+import { WeeklySection } from '@/components/features/dashboard/weekly-section'
+import { StreakSection } from '@/components/features/dashboard/streak-section'
+import { InsightsSection } from '@/components/features/dashboard/insights-section'
+import { MedicationSection } from '@/components/features/dashboard/medication-section'
 import { QuickAddButton } from '@/components/features/dashboard/quick-add-button'
-import { WeeklySummaryCard } from '@/components/features/dashboard/weekly-summary-card'
-import { StreakCard } from '@/components/features/dashboard/streak-card'
-import { DashboardInsightWidget } from '@/components/features/dashboard/insight-widget'
-import { MedicationTracker } from '@/components/features/dashboard/medication-tracker'
-import { TargetProgressCard } from '@/components/features/dashboard/target-progress-card'
-import { EmptyState } from '@/components/ui/empty-state'
-import { generateTrendInsights, generatePatternInsights, type Insight } from '@/lib/insights'
-import { getTrendComparison } from '@/app/actions/analytics'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { Skeleton, SkeletonStatCard, SkeletonChart } from '@/components/ui/skeleton'
 
 export const dynamic = 'force-dynamic'
 
-/** Count consecutive days (back from today) with at least one reading. */
-function computeStreak(records: Array<{ measured_at: string }>): number {
-  const dates = new Set(
-    records.map((r) => new Date(r.measured_at).toISOString().slice(0, 10))
-  )
-  let streak = 0
-  const today = new Date()
-  for (let i = 0; i < 365; i++) {
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
-    if (dates.has(key)) {
-      streak++
-    } else {
-      break
-    }
-  }
-  return streak
-}
-
-/** Days since the most recent reading (0 = today). */
-function computeDaysSinceLastReading(records: Array<{ measured_at: string }>): number {
-  if (records.length === 0) return 999
-  const lastDate = new Date(records[0].measured_at)
-  const today = new Date()
-  return Math.floor(
-    (today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
-  )
-}
-
 export default async function DashboardPage() {
   const supabase = await createClient()
-
-  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return null
-  }
-
-  // Get latest reading (filtered by user_id for defense-in-depth, walaupun
-  // RLS sudah menjamin isolasi)
-  const { data: latestRecord } = await supabase
-    .from('blood_pressure_records')
-    .select('*')
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .order('measured_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  // Get last 7 days records for chart
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-  const { data: weeklyRecords } = await supabase
-    .from('blood_pressure_records')
-    .select('*')
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .gte('measured_at', sevenDaysAgo.toISOString())
-    .order('measured_at', { ascending: true })
-
-  // Calculate weekly average
-  const weeklyAverage = weeklyRecords && weeklyRecords.length > 0
-    ? {
-        systolic: Math.round(
-          weeklyRecords.reduce((sum, r) => sum + r.systolic, 0) / weeklyRecords.length
-        ),
-        diastolic: Math.round(
-          weeklyRecords.reduce((sum, r) => sum + r.diastolic, 0) / weeklyRecords.length
-        ),
-      }
-    : null
-
-  // Fetch today's medications
-  const { data: medications } = await supabase
-    .from('medications')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('taken_date', new Date().toISOString().slice(0, 10))
-    .order('created_at', { ascending: true })
-
-  // Fetch target BP from profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('target_systolic, target_diastolic')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  // Calculate streak: consecutive days with at least one reading.
-  // Fetch up to 365 days so the streak can count beyond a single month.
-  const oneYearAgo = new Date()
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
-
-  const { data: streakRecords } = await supabase
-    .from('blood_pressure_records')
-    .select('measured_at')
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .gte('measured_at', oneYearAgo.toISOString())
-    .order('measured_at', { ascending: false })
-
-  const streak = computeStreak(streakRecords ?? [])
-  const daysSinceLastReading = computeDaysSinceLastReading(streakRecords ?? [])
-
-  // Compute weekly insight (this-week vs last-week) for the dashboard widget.
-  // Defensive try/catch so a transient failure never breaks the page.
-  let insights: Insight[] = []
-  try {
-    const trendComparison = await getTrendComparison(7)
-    const trendInsights = generateTrendInsights(trendComparison)
-    const patternInsights = generatePatternInsights(
-      (weeklyRecords ?? []) as Parameters<typeof generatePatternInsights>[0]
-    )
-    insights = [...trendInsights, ...patternInsights]
-  } catch (error) {
-    console.error('Failed to compute weekly insights:', error)
-    insights = []
-  }
+  if (!user) return null
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Page Header — instant, no data needed */}
       <div className="animate-fade-in-up">
         <div className="flex items-center gap-2 mb-1">
           <Sparkles className="w-4 h-4 text-purple-500" />
@@ -156,88 +34,55 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Latest Reading or Empty State */}
-      {latestRecord ? (
-        <LatestReading record={latestRecord} />
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <EmptyState
-              icon={Heart}
-              gradient="hero"
-              title="Belum ada pencatatan"
-              description="Mulai catat tekanan darah pertama Anda hari ini untuk mulai memantau kesehatan."
-              action={
-                <Button asChild className="bg-blue-600 hover:bg-blue-700">
-                  <Link href="/records/new">Catat Sekarang</Link>
-                </Button>
-              }
-            />
-          </CardContent>
-        </Card>
-      )}
+      {/* Latest Reading — streams first (single, fast query) */}
+      <Suspense fallback={<SkeletonStatCard />}>
+        <LatestReadingSection userId={user.id} />
+      </Suspense>
 
-      {/* Weekly Insight (compact, mobile-first) */}
-      {insights.length > 0 && (
-        <DashboardInsightWidget insights={insights} />
-      )}
-
-      {/* Weekly Summary Card */}
-      <WeeklySummaryCard
-        weeklyAverage={weeklyAverage}
-        recordCount={weeklyRecords?.length || 0}
-        records={
-          (weeklyRecords as unknown as Parameters<
-            typeof WeeklySummaryCard
-          >[0]['records']) || []
+      {/* Insights — moderate query, streams after latest reading */}
+      <Suspense
+        fallback={
+          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 space-y-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-full" />
+          </div>
         }
-      />
+      >
+        <InsightsSection userId={user.id} />
+      </Suspense>
 
-      {/* Target Progress */}
-      <TargetProgressCard
-        targetSystolic={profile?.target_systolic ?? null}
-        targetDiastolic={profile?.target_diastolic ?? null}
-        weeklyAverage={weeklyAverage}
-      />
-
-      {/* Streak Card */}
-      {latestRecord && (
-        <StreakCard streak={streak} daysSinceLastReading={daysSinceLastReading} />
-      )}
-
-      {/* Quick Stats */}
-      <QuickStats
-        weeklyAverage={weeklyAverage}
-        totalRecords={weeklyRecords?.length || 0}
-      />
-
-      {/* Medication Tracker */}
-      <MedicationTracker
-        medications={
-          (medications as unknown as Parameters<
-            typeof MedicationTracker
-          >[0]['medications']) || []
+      {/* Weekly data — the heaviest chunk (2 queries + chart) */}
+      <Suspense
+        fallback={
+          <div className="space-y-4">
+            <SkeletonStatCard />
+            <SkeletonStatCard />
+            <SkeletonChart height={220} />
+          </div>
         }
-      />
+      >
+        <WeeklySection userId={user.id} />
+      </Suspense>
 
-      {/* Weekly Chart */}
-      {weeklyRecords && weeklyRecords.length > 0 && (
-        <Card className="animate-fade-in-up">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-cyan-100 dark:bg-cyan-950/50">
-                <Calendar className="w-4 h-4 text-white" />
-              </span>
-              Grafik 7 Hari Terakhir
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WeeklyChart data={weeklyRecords} />
-          </CardContent>
-        </Card>
-      )}
+      {/* Streak — independent query */}
+      <Suspense fallback={<SkeletonStatCard />}>
+        <StreakSection userId={user.id} />
+      </Suspense>
 
-      {/* Quick Add Button */}
+      {/* Medications — independent query */}
+      <Suspense
+        fallback={
+          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 space-y-3">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        }
+      >
+        <MedicationSection userId={user.id} />
+      </Suspense>
+
+      {/* Quick Add Button — instant */}
       <QuickAddButton />
     </div>
   )

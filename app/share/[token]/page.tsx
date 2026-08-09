@@ -8,7 +8,9 @@ import {
   getTrendComparisonByUserId,
 } from '@/lib/share-internal-queries'
 
-export const dynamic = 'force-dynamic'
+// ISR — page served from edge cache, silently regenerated every 30 s.
+// Safe because share pages are public (token-based), one URL per user.
+export const revalidate = 30
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Activity, Lock, Eye } from 'lucide-react'
 import { RecordsList } from '@/components/features/records/records-list'
