@@ -21,6 +21,7 @@ import { BloodPressureRecord } from '@/types/blood-pressure.types'
 import { calculateCategory } from '@/lib/blood-pressure'
 import { CategoryBadge } from '@/components/ui/category-badge'
 import { VoiceInput } from '@/components/ui/voice-input'
+import { TagSelector } from './tag-selector'
 
 const OFFLINE_FORM_KEY = 'tensi-offline-form'
 
@@ -147,6 +148,8 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
 
   // Restore saved form data from localStorage (new record only).
   // This preserves user input when the browser tab was closed while offline.
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+
   const [formValues, setFormValues] = useState<FormState>(() => {
     if (isEdit) return buildInitialValues()
     try {
@@ -523,7 +526,15 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
             <p className="text-xs text-gray-400 dark:text-gray-500">
               {formValues.notes.length}/500
             </p>
-          </div>
+          </div>         </div>
+
+        <div className="space-y-2">
+          <Label>Faktor Gaya Hidup</Label>
+          <TagSelector selected={selectedTags} onChange={setSelectedTags} />
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Tandai jika ada faktor yang mempengaruhi tensi (opsional)
+          </p>
+          <input type="hidden" name="tags" value={selectedTags.join(',')} />
         </div>
 
         <div className="flex gap-3 pt-2">

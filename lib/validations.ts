@@ -79,6 +79,11 @@ export const bloodPressureSchema = z.object({
     .max(500, 'Catatan maksimal 500 karakter')
     .nullable()
     .optional(),
+  tags: z
+    .array(z.string())
+    .max(10, 'Maksimal 10 tag')
+    .optional()
+    .default([]),
   measured_at: measuredAtSchema,
 })
 

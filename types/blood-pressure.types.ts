@@ -13,6 +13,7 @@ export interface BloodPressureRecord {
   pulse: number | null
   category: BloodPressureCategory
   notes: string | null
+  tags?: string[]
   measured_at: string
   created_at: string
   updated_at: string
@@ -24,6 +25,7 @@ export interface BloodPressureInput {
   diastolic: number
   pulse?: number | null
   notes?: string | null
+  tags?: string[]
   measured_at: string
 }
 
@@ -51,6 +53,8 @@ export interface GetRecordsOptions {
   pageSize?: number
   startDate?: string
   endDate?: string
+  category?: string
+  tag?: string
 }
 
 /**

@@ -11,6 +11,8 @@ import { Chart30Days } from '@/components/features/analytics/30-day-chart'
 import { CategoryDistributionChart } from '@/components/features/analytics/category-distribution-chart'
 import { TrendIndicator } from '@/components/features/analytics/trend-indicator'
 import { TrendInsights } from '@/components/features/analytics/trend-insights'
+import { DiurnalSection } from '@/components/features/analytics/diurnal-section'
+import { TagCorrelationSection } from '@/components/features/analytics/tag-correlation-section'
 import { generateTrendInsights, type Insight } from '@/lib/insights'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
@@ -301,6 +303,10 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
               compareLabel={`${MONTH_NAMES[compareMonth - 1]} ${compareYear}`}
             />
           )}
+
+          {/* Diurnal & Tag Correlation */}
+          <DiurnalSection />
+          <TagCorrelationSection />
 
           {/* Monthly Stats */}
           <MonthlyStatsCard stats={monthly} />

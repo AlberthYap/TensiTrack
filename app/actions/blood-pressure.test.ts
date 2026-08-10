@@ -177,6 +177,7 @@ describe('addBloodPressureRecord', () => {
       p_category: 'hypertension_stage_1', // 120/80 → 'hypertension_stage_1' per AHA (diastolic ≥80)
       p_notes: null,
       p_measured_at: expect.any(String),
+      p_tags: [],
     })
     expect(mockRpc).not.toHaveBeenCalled()
     // Regular insert should not be called for demo users
@@ -376,6 +377,7 @@ describe('batchImportBloodPressureRecords', () => {
           category: 'normal', // 110/70 → 'normal' per AHA
           notes: null,
           measured_at: now,
+          tags: [],
         },
         {
           systolic: 135,
@@ -384,6 +386,7 @@ describe('batchImportBloodPressureRecords', () => {
           category: 'hypertension_stage_1', // 135/85 → 'hypertension_stage_1' per AHA
           notes: null,
           measured_at: now,
+          tags: [],
         },
       ],
     })

@@ -6,6 +6,7 @@ import { WeeklySection } from '@/components/features/dashboard/weekly-section'
 import { StreakSection } from '@/components/features/dashboard/streak-section'
 import { InsightsSection } from '@/components/features/dashboard/insights-section'
 import { MedicationSection } from '@/components/features/dashboard/medication-section'
+import { RiskGaugeSection } from '@/components/features/dashboard/risk-gauge-section'
 import { QuickAddButton } from '@/components/features/dashboard/quick-add-button'
 import { Skeleton, SkeletonStatCard, SkeletonChart } from '@/components/ui/skeleton'
 
@@ -67,6 +68,11 @@ export default async function DashboardPage() {
       {/* Streak — independent query */}
       <Suspense fallback={<SkeletonStatCard />}>
         <StreakSection userId={user.id} />
+      </Suspense>
+
+      {/* Risk Gauge */}
+      <Suspense fallback={<SkeletonStatCard />}>
+        <RiskGaugeSection />
       </Suspense>
 
       {/* Medications — independent query */}
