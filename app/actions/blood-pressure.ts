@@ -106,6 +106,96 @@ export async function addBloodPressureRecord(formData: FormData) {
   redirect('/dashboard')
 }
 
+export async function quickAddBloodPressureRecord(formData: FormData) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Unauthorized' }
+  }
+
+  // Rate limit demo user mutations by IP
+  const rateLimitResult = await checkDemoRateLimit(user.email, 'record')
+  if (rateLimitResult.error) {
+    return { error: rateLimitResult.error }
+  }
+
+  // Parse tags from comma-separated form field
+  const tagsRaw = (formData.get('tags') as string) || ''
+  const tagsList = tagsRaw ? tagsRaw.split(',').map((t) => t.trim()).filter(Boolean) : []
+
+  // Validate input
+  const validatedFields = bloodPressureSchema.safeParse({
+    systolic: Number(formData.get('systolic')),
+    diastolic: Number(formData.get('diastolic')),
+    pulse: formData.get('pulse') ? Number(formData.get('pulse')) : null,
+    notes: formData.get('notes') || null,
+    tags: tagsList,
+    measured_at: formData.get('measured_at'),
+  })
+
+  if (!validatedFields.success) {
+    return {
+      error: validatedFields.error.issues[0].message,
+    }
+  }
+
+  const { systolic, diastolic, pulse, notes, tags, measured_at } = validatedFields.data
+  const category = calculateCategory(systolic, diastolic)
+
+  // Demo users: atomic RPC (hard cap check + insert in one transaction).
+  if (isDemoEmail(user.email)) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('quickAddBloodPressureRecord: SUPABASE_SERVICE_ROLE_KEY is not set')
+      return { error: 'Konfigurasi server tidak lengkap. Silakan coba lagi nanti.' }
+    }
+    const adminClient = createAdminClient()
+    const { data: rpcResult, error: rpcError } = await adminClient.rpc(
+      'insert_bp_record_atomic',
+      {
+        p_user_id: user.id,
+        p_systolic: systolic,
+        p_diastolic: diastolic,
+        p_pulse: pulse ?? null,
+        p_category: category,
+        p_notes: notes ?? null,
+        p_measured_at: measured_at,
+        p_tags: tags ?? [],
+      }
+    )
+
+    if (rpcError) {
+      console.error('Atomic insert RPC error:', rpcError)
+      return { error: rpcError.message }
+    }
+    if (rpcResult?.error) {
+      return { error: rpcResult.error }
+    }
+  } else {
+    const { error } = await supabase
+      .from('blood_pressure_records')
+      .insert({
+        user_id: user.id,
+        systolic,
+        diastolic,
+        pulse,
+        category,
+        tags: tags ?? [],
+        notes,
+        measured_at,
+      })
+
+    if (error) {
+      return { error: error.message }
+    }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/records')
+  revalidatePath('/analytics')
+  return { success: true }
+}
+
 export async function updateBloodPressureRecord(id: string, formData: FormData) {
   const supabase = await createClient()
 
