@@ -86,11 +86,9 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     if (pulse) fd.set('pulse', pulse)
     if (notes) fd.set('notes', notes)
     fd.set('tags', selectedTags.join(','))
-    // measured_at defaults to "now" on the server side (schema requires it,
-    // so send current local time normalized to UTC like the main form does).
-    const now = new Date()
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-    fd.set('measured_at', now.toISOString())
+    // Quick Add has no datetime-local input. `toISOString()` already returns
+    // the current instant in UTC; do not apply the local offset a second time.
+    fd.set('measured_at', new Date().toISOString())
 
     const result = await quickAddBloodPressureRecord(fd)
 
