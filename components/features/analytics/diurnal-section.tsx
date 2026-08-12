@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getAppHour, getAppRollingRangeUtc } from '@/lib/timezone'
 import { DiurnalCard } from './diurnal-card'
 
 export async function DiurnalSection() {
@@ -6,29 +7,24 @@ export async function DiurnalSection() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgo = getAppRollingRangeUtc(30).start
 
   const { data: records } = await supabase
     .from('blood_pressure_records')
     .select('measured_at, systolic, diastolic')
     .eq('user_id', user.id)
     .is('deleted_at', null)
-    .gte('measured_at', thirtyDaysAgo.toISOString())
+    .gte('measured_at', thirtyDaysAgo)
     .order('measured_at', { ascending: false })
 
   if (!records || records.length < 2) return null
 
-  // WIB offset: server runs UTC, but users are in Indonesia (UTC+7).
-  // We adjust the hour so 6-11 AM WIB and 4-9 PM WIB are detected correctly.
-  const WIB_HOUR = (utc: string) => (new Date(utc).getUTCHours() + 7) % 24
-
   const morning = records.filter((r) => {
-    const h = WIB_HOUR(r.measured_at)
+    const h = getAppHour(r.measured_at)
     return h >= 6 && h <= 11
   })
   const evening = records.filter((r) => {
-    const h = WIB_HOUR(r.measured_at)
+    const h = getAppHour(r.measured_at)
     return h >= 16 && h <= 21
   })
 

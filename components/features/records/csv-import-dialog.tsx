@@ -295,6 +295,7 @@ export function CsvImportDialog({ trigger }: CsvImportDialogProps) {
                                 {new Date(row.measured_at).toLocaleString('id-ID', {
                                   dateStyle: 'short',
                                   timeStyle: 'short',
+                                  timeZone: 'Asia/Jakarta',
                                 })}
                               </td>
                               <td className="px-3 py-1.5">

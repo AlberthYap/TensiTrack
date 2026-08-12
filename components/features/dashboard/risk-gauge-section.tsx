@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTrendComparison } from '@/app/actions/analytics'
+import { addAppDateDays, getAppDateKey, getAppDayStartUtc, getAppRollingRangeUtc } from '@/lib/timezone'
 import { RiskGauge } from './risk-gauge'
 
 export async function RiskGaugeSection() {
@@ -8,44 +9,35 @@ export async function RiskGaugeSection() {
   if (!user) return null
 
   // Streak data
-  const oneYearAgo = new Date()
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+  const oneYearAgo = getAppDayStartUtc(addAppDateDays(getAppDateKey(), -365))
   const { data: streakRecords } = await supabase
     .from('blood_pressure_records')
     .select('measured_at')
     .eq('user_id', user.id)
     .is('deleted_at', null)
-    .gte('measured_at', oneYearAgo.toISOString())
+    .gte('measured_at', oneYearAgo)
     .order('measured_at', { ascending: false })
 
   if (!streakRecords || streakRecords.length < 3) return null
 
-  // Compute streak using WIB-adjusted dates (server runs UTC, users are UTC+7).
-  const toWibDate = (iso: string) => {
-    const d = new Date(iso)
-    d.setHours(d.getUTCHours() + 7)
-    return d.toISOString().slice(0, 10)
-  }
-  const dates = new Set(streakRecords.map((r) => toWibDate(r.measured_at)))
+  // Compute streak using the same Asia/Jakarta calendar used throughout the app.
+  const dates = new Set(streakRecords.map((r) => getAppDateKey(r.measured_at)))
   let streak = 0
-  const today = new Date()
-  today.setHours(today.getUTCHours() + 7) // WIB today
+  const today = getAppDateKey()
   for (let i = 0; i < 365; i++) {
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    if (dates.has(d.toISOString().slice(0, 10))) streak++
+    const dateKey = addAppDateDays(today, -i)
+    if (dates.has(dateKey)) streak++
     else break
   }
 
   // Category breakdown (30 days)
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgo = getAppRollingRangeUtc(30).start
   const { data: recentRecords } = await supabase
     .from('blood_pressure_records')
     .select('category')
     .eq('user_id', user.id)
     .is('deleted_at', null)
-    .gte('measured_at', thirtyDaysAgo.toISOString())
+    .gte('measured_at', thirtyDaysAgo)
 
   const catCounts: Record<string, number> = {}
   ;(recentRecords || []).forEach((r) => {

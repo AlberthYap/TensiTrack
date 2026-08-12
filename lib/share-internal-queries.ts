@@ -10,6 +10,14 @@ import {
   TrendComparison,
 } from '@/types/blood-pressure.types'
 import { calculateCategory } from '@/lib/blood-pressure'
+import {
+  addAppDateDays,
+  getAppDateKey,
+  formatAppDateKeyLabel,
+  getAppMonthRangeUtc,
+  getAppPeriodRangesUtc,
+  getAppRollingRangeUtc,
+} from '@/lib/timezone'
 
 // SECURITY: this file has no 'use server' directive, so exported functions
 // are NOT public Server Action endpoints. Callers MUST validate the share
@@ -71,20 +79,18 @@ export async function getMonthlyStatsByUserId(
   try {
     const supabase = createAdminClient()
 
-    const now = new Date()
-    const targetYear = year ?? now.getFullYear()
-    const targetMonth = month ?? now.getMonth() + 1
-
-    const startOfMonth = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0, 0)
-    const endOfMonth = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999)
+    const [currentYear, currentMonth] = getAppDateKey().split('-').map(Number)
+    const targetYear = year ?? currentYear
+    const targetMonth = month ?? currentMonth
+    const monthRange = getAppMonthRangeUtc(targetYear, targetMonth)
 
     const { data, error } = await supabase
       .from('blood_pressure_records')
       .select('*')
       .eq('user_id', userId)
       .is('deleted_at', null)
-      .gte('measured_at', startOfMonth.toISOString())
-      .lte('measured_at', endOfMonth.toISOString())
+      .gte('measured_at', monthRange.start)
+      .lte('measured_at', monthRange.end)
       .order('measured_at', { ascending: true })
 
     if (error) {
@@ -114,7 +120,7 @@ export async function getMonthlyStatsByUserId(
     const lowestDiastolic = Math.min(...data.map((r) => r.diastolic))
 
     const uniqueDays = new Set(
-      data.map((r) => new Date(r.measured_at).toISOString().slice(0, 10))
+      data.map((r) => getAppDateKey(r.measured_at))
     )
 
     const categoryBreakdown: Record<BloodPressureCategory, number> = {
@@ -162,19 +168,15 @@ export async function get30DayChartDataByUserId(
 ): Promise<DailyPoint[]> {
   try {
     const supabase = createAdminClient()
-    const endDate = new Date()
-    endDate.setHours(23, 59, 59, 999)
-    const startDate = new Date(endDate)
-    startDate.setDate(startDate.getDate() - (days - 1))
-    startDate.setHours(0, 0, 0, 0)
+    const range = getAppRollingRangeUtc(days)
 
     const { data, error } = await supabase
       .from('blood_pressure_records')
       .select('*')
       .eq('user_id', userId)
       .is('deleted_at', null)
-      .gte('measured_at', startDate.toISOString())
-      .lte('measured_at', endDate.toISOString())
+      .gte('measured_at', range.start)
+      .lte('measured_at', range.end)
       .order('measured_at', { ascending: true })
 
     if (error) {
@@ -194,7 +196,7 @@ export async function get30DayChartDataByUserId(
     >()
 
     for (const r of data ?? []) {
-      const key = localDateKey(new Date(r.measured_at))
+      const key = getAppDateKey(r.measured_at)
       const existing = buckets.get(key) ?? {
         systolicSum: 0,
         diastolicSum: 0,
@@ -213,13 +215,12 @@ export async function get30DayChartDataByUserId(
     }
 
     const result: DailyPoint[] = []
-    const cursor = new Date(startDate)
     for (let i = 0; i < days; i++) {
-      const key = localDateKey(cursor)
+      const key = addAppDateDays(range.startDateKey, i)
       const bucket = buckets.get(key)
       result.push({
         date: key,
-        label: formatChartLabel(cursor),
+        label: formatAppDateKeyLabel(key),
         systolic: bucket ? Math.round(bucket.systolicSum / bucket.count) : null,
         diastolic: bucket ? Math.round(bucket.diastolicSum / bucket.count) : null,
         pulse:
@@ -228,7 +229,6 @@ export async function get30DayChartDataByUserId(
             : null,
         count: bucket?.count ?? 0,
       })
-      cursor.setDate(cursor.getDate() + 1)
     }
 
     return result
@@ -244,16 +244,14 @@ export async function getCategoryStatsByUserId(
 ): Promise<CategoryDistribution> {
   try {
     const supabase = createAdminClient()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
-    startDate.setHours(0, 0, 0, 0)
+    const range = getAppRollingRangeUtc(days)
 
     const { data, error } = await supabase
       .from('blood_pressure_records')
       .select('systolic, diastolic, category')
       .eq('user_id', userId)
       .is('deleted_at', null)
-      .gte('measured_at', startDate.toISOString())
+      .gte('measured_at', range.start)
 
     if (error) {
       console.error('Error fetching share category stats:', error)
@@ -302,31 +300,21 @@ export async function getTrendComparisonByUserId(
   try {
     const supabase = createAdminClient()
 
-    const now = new Date()
-    const currentEnd = now
-    const currentStart = new Date(now)
-    currentStart.setDate(currentStart.getDate() - periodDays)
-    currentStart.setHours(0, 0, 0, 0)
+    const ranges = getAppPeriodRangesUtc(periodDays)
 
-    const previousEnd = new Date(currentStart)
-    previousEnd.setMilliseconds(-1)
-    const previousStart = new Date(currentStart)
-    previousStart.setDate(previousStart.getDate() - periodDays)
-    previousStart.setHours(0, 0, 0, 0)
-
-    const fetchRange = async (start: Date, end: Date) => {
+    const fetchRange = async (start: string, end: string) => {
       return supabase
         .from('blood_pressure_records')
         .select('systolic, diastolic')
         .eq('user_id', userId)
         .is('deleted_at', null)
-        .gte('measured_at', start.toISOString())
-        .lte('measured_at', end.toISOString())
+        .gte('measured_at', start)
+        .lte('measured_at', end)
     }
 
     const [{ data: currentData }, { data: previousData }] = await Promise.all([
-      fetchRange(currentStart, currentEnd),
-      fetchRange(previousStart, previousEnd),
+      fetchRange(ranges.current.start, ranges.current.end),
+      fetchRange(ranges.previous.start, ranges.previous.end),
     ])
 
     const summarize = (rows: { systolic: number; diastolic: number }[] | null) => {
@@ -350,13 +338,13 @@ export async function getTrendComparisonByUserId(
 
     return {
       current: {
-        startDate: currentStart.toISOString(),
-        endDate: currentEnd.toISOString(),
+        startDate: ranges.current.start,
+        endDate: ranges.current.end,
         ...current,
       },
       previous: {
-        startDate: previousStart.toISOString(),
-        endDate: previousEnd.toISOString(),
+        startDate: ranges.previous.start,
+        endDate: ranges.previous.end,
         ...previous,
       },
       systolicChange,
@@ -387,14 +375,3 @@ function classifyTrend(change: number): 'up' | 'down' | 'stable' {
   return change > 0 ? 'up' : 'down'
 }
 
-function localDateKey(d: Date): string {
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function formatChartLabel(d: Date): string {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-  return `${d.getDate()} ${months[d.getMonth()]}`
-}

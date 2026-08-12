@@ -1,11 +1,14 @@
-import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns'
+import { formatDistanceToNow, isValid, parseISO, format } from 'date-fns'
 import { id } from 'date-fns/locale'
+import {
+  formatAppDate,
+  formatAppDateTime,
+  formatAppTime,
+} from '@/lib/timezone'
 
 /**
  * Parse input ke Date object dengan safety handling.
  * Mengembalikan null untuk string invalid atau Date invalid (mis. NaN).
- * Memanggil site tidak akan crash karena invalid date — caller bisa
- * fallback string kosong atau tampilkan placeholder.
  */
 function safeParseDate(date: string | Date | null | undefined): Date | null {
   if (date == null) return null
@@ -21,13 +24,13 @@ export function formatDate(
 ): string {
   const dateObj = safeParseDate(date)
   if (!dateObj) return '-'
+  if (formatStr === 'dd MMM yyyy') return formatAppDate(dateObj)
   return format(dateObj, formatStr, { locale: id })
 }
 
 export function formatDateTime(date: string | Date | null | undefined): string {
   const dateObj = safeParseDate(date)
-  if (!dateObj) return '-'
-  return format(dateObj, 'dd MMM yyyy, HH:mm', { locale: id })
+  return dateObj ? formatAppDateTime(dateObj) : '-'
 }
 
 export function formatRelativeTime(date: string | Date | null | undefined): string {
@@ -38,6 +41,5 @@ export function formatRelativeTime(date: string | Date | null | undefined): stri
 
 export function formatTime(date: string | Date | null | undefined): string {
   const dateObj = safeParseDate(date)
-  if (!dateObj) return '-'
-  return format(dateObj, 'HH:mm', { locale: id })
+  return dateObj ? formatAppTime(dateObj) : '-'
 }

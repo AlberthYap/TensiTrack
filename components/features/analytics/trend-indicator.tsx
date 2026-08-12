@@ -8,8 +8,7 @@ import {
   Calendar,
   Eye,
 } from 'lucide-react'
-import { format } from 'date-fns'
-import { id } from 'date-fns/locale'
+import { formatAppDate } from '@/lib/timezone'
 
 interface TrendIndicatorProps {
   comparison: TrendComparison
@@ -207,7 +206,7 @@ function getTrendDisplay(change: number, color: 'red' | 'blue') {
 }
 
 function formatPeriod(startIso: string, endIso: string): string {
-  const start = new Date(startIso)
-  const end = new Date(endIso)
-  return `${format(start, 'd MMM', { locale: id })} - ${format(end, 'd MMM yyyy', { locale: id })}`
+  const start = formatAppDate(startIso).replace(/^0/, '').replace(/\s+\d{4}$/, '')
+  const end = formatAppDate(endIso)
+  return `${start} - ${end}`
 }

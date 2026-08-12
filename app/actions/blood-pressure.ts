@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { bloodPressureSchema } from '@/lib/validations'
 import { calculateCategory } from '@/lib/blood-pressure'
 import { isDemoEmail, checkDemoRateLimit } from '@/lib/demo'
+import { getAppDateRangeUtc } from '@/lib/timezone'
 import type { BloodPressureRecord } from '@/types/blood-pressure.types'
 
 export async function addBloodPressureRecord(formData: FormData) {
@@ -365,18 +366,9 @@ export async function getBloodPressureRecordsPaginated(
     .eq('user_id', user.id)
     .is('deleted_at', null)
 
-  if (options.startDate) {
-    // start of day in ISO (local)
-    const start = new Date(options.startDate)
-    start.setHours(0, 0, 0, 0)
-    query = query.gte('measured_at', start.toISOString())
-  }
-
-  if (options.endDate) {
-    const end = new Date(options.endDate)
-    end.setHours(23, 59, 59, 999)
-    query = query.lte('measured_at', end.toISOString())
-  }
+  const dateRange = getAppDateRangeUtc(options.startDate, options.endDate)
+  if (dateRange.start) query = query.gte('measured_at', dateRange.start)
+  if (dateRange.end) query = query.lte('measured_at', dateRange.end)
 
   if (options.category && options.category !== 'all') {
     query = query.eq('category', options.category)
@@ -419,17 +411,9 @@ export async function getBloodPressureRecordsCount(
     .eq('user_id', user.id)
     .is('deleted_at', null)
 
-  if (options.startDate) {
-    const start = new Date(options.startDate)
-    start.setHours(0, 0, 0, 0)
-    query = query.gte('measured_at', start.toISOString())
-  }
-
-  if (options.endDate) {
-    const end = new Date(options.endDate)
-    end.setHours(23, 59, 59, 999)
-    query = query.lte('measured_at', end.toISOString())
-  }
+  const dateRange = getAppDateRangeUtc(options.startDate, options.endDate)
+  if (dateRange.start) query = query.gte('measured_at', dateRange.start)
+  if (dateRange.end) query = query.lte('measured_at', dateRange.end)
 
   const { count } = await query
   return count ?? 0

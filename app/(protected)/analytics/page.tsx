@@ -19,6 +19,7 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { getAppDateKey } from '@/lib/timezone'
 export const dynamic = 'force-dynamic'
 
 interface AnalyticsPageProps {
@@ -107,9 +108,9 @@ function CompareMonthsCard({
 }
 
 export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps) {
-  const now = new Date()
-  const selectedYear = Number(searchParams.year) || now.getFullYear()
-  const selectedMonth = Number(searchParams.month) || now.getMonth() + 1
+  const [currentYear, currentMonth] = getAppDateKey().split('-').map(Number)
+  const selectedYear = Number(searchParams.year) || currentYear
+  const selectedMonth = Number(searchParams.month) || currentMonth
   const compareYear = Number(searchParams.compareYear) || 0
   const compareMonth = Number(searchParams.compareMonth) || 0
   const hasCompare = compareYear > 0 && compareMonth > 0
@@ -207,7 +208,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
                 defaultValue={selectedYear}
                 className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
               >
-                {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map((y) => (
+                {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
@@ -215,7 +216,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
             <Button type="submit" size="sm" variant="outline">
               Tampilkan
             </Button>
-            {(selectedYear !== now.getFullYear() || selectedMonth !== now.getMonth() + 1 || hasCompare) && (
+            {(selectedYear !== currentYear || selectedMonth !== currentMonth || hasCompare) && (
               <Button asChild size="sm" variant="ghost">
                 <Link href="/analytics">↩ Bulan Ini</Link>
               </Button>
@@ -250,7 +251,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
                 className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
               >
                 <option value="">--</option>
-                {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map((y) => (
+                {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>

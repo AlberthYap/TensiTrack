@@ -33,42 +33,23 @@ describe('applyDateRange', () => {
     expect(result).toBe(builder)
   })
 
-  // BUG REGRESSION TEST: bug #4 — verify startDate anchored ke awal hari LOKAL.
-  // Note: new Date('2024-01-15') di-parse sebagai UTC midnight, lalu
-  // .setHours(0,0,0,0) di local TZ menghasilkan ISO string yang berbeda
-  // per timezone. Test ini verifikasi invariant: date part of result
-  // is 2024-01-15 dan time part is 00:00:00.000 di LOKAL.
-  it('applies gte for startDate anchored to 00:00:00.000 local time', () => {
+  // Asia/Jakarta midnight is the previous day's 17:00 UTC.
+  it('applies gte for startDate anchored to Asia/Jakarta midnight', () => {
     const { builder, calls } = createMockBuilder()
     applyDateRange(builder, { startDate: '2024-01-15' })
     expect(calls).toHaveLength(1)
     expect(calls[0].method).toBe('gte')
     expect(calls[0].args[0]).toBe('measured_at')
-    // Get the Date object that was constructed and check its local components
-    const d = new Date(calls[0].args[1] as string)
-    expect(d.getFullYear()).toBe(2024)
-    expect(d.getMonth()).toBe(0) // January
-    expect(d.getDate()).toBe(15)
-    expect(d.getHours()).toBe(0)
-    expect(d.getMinutes()).toBe(0)
-    expect(d.getSeconds()).toBe(0)
-    expect(d.getMilliseconds()).toBe(0)
+    expect(calls[0].args[1]).toBe('2024-01-14T17:00:00.000Z')
   })
 
-  it('applies lte for endDate anchored to 23:59:59.999 local time', () => {
+  it('applies lte for endDate anchored to Asia/Jakarta end of day', () => {
     const { builder, calls } = createMockBuilder()
     applyDateRange(builder, { endDate: '2024-01-15' })
     expect(calls).toHaveLength(1)
     expect(calls[0].method).toBe('lte')
     expect(calls[0].args[0]).toBe('measured_at')
-    const d = new Date(calls[0].args[1] as string)
-    expect(d.getFullYear()).toBe(2024)
-    expect(d.getMonth()).toBe(0)
-    expect(d.getDate()).toBe(15)
-    expect(d.getHours()).toBe(23)
-    expect(d.getMinutes()).toBe(59)
-    expect(d.getSeconds()).toBe(59)
-    expect(d.getMilliseconds()).toBe(999)
+    expect(calls[0].args[1]).toBe('2024-01-15T16:59:59.999Z')
   })
 
   it('applies both gte and lte when both options provided', () => {

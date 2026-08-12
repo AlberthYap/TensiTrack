@@ -1,5 +1,6 @@
 import { CATEGORY_LABELS } from '@/lib/blood-pressure'
 import { BloodPressureRecord } from '@/types/blood-pressure.types'
+import { getAppDateKey, formatAppTime } from '@/lib/timezone'
 
 /**
  * Row schema untuk export Excel/CSV.
@@ -20,10 +21,9 @@ export interface ExportRow {
  * Format ISO date → dd/MM/yyyy
  */
 export function formatExportDate(iso: string): string {
-  const d = new Date(iso)
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const yyyy = d.getFullYear()
+  const dateKey = getAppDateKey(iso)
+  if (!dateKey) return '-'
+  const [yyyy, mm, dd] = dateKey.split('-')
   return `${dd}/${mm}/${yyyy}`
 }
 
@@ -31,10 +31,7 @@ export function formatExportDate(iso: string): string {
  * Format ISO date → HH:mm
  */
 export function formatExportTime(iso: string): string {
-  const d = new Date(iso)
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mi = String(d.getMinutes()).padStart(2, '0')
-  return `${hh}:${mi}`
+  return formatAppTime(iso)
 }
 
 /**

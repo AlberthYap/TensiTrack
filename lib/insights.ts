@@ -1,5 +1,6 @@
 import { calculateCategory } from '@/lib/blood-pressure'
 import type { TrendComparison, BloodPressureRecord } from '@/types/blood-pressure.types'
+import { getAppDateKey, getAppHour } from '@/lib/timezone'
 
 /**
  * Tone category for an insight — drives icon + color in the UI.
@@ -235,9 +236,7 @@ export function generatePatternInsights(
   const evening: TimeBucket = { systolicSum: 0, diastolicSum: 0, count: 0 }
 
   for (const r of records) {
-    // Use UTC hour so behaviour is consistent across server timezones.
-    // Records are stored as TIMESTAMPTZ (UTC) in Supabase.
-    const hour = new Date(r.measured_at).getUTCHours()
+    const hour = getAppHour(r.measured_at)
     const bucket = getTimeBucket(hour)
     if (bucket === 'morning') {
       morning.systolicSum += r.systolic
@@ -283,9 +282,7 @@ export function generatePatternInsights(
   // Insight B: measurement rhythm — only when few unique days suggest skipping
   const uniqueDays = new Set(
     records.map((r) => {
-      // Use UTC date to stay timezone-consistent
-      const d = new Date(r.measured_at)
-      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+      return getAppDateKey(r.measured_at)
     })
   )
   const totalDays = 7

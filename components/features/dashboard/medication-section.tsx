@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getAppTodayKey } from '@/lib/timezone'
 import { MedicationTracker } from './medication-tracker'
 
 interface MedicationSectionProps {
@@ -12,7 +13,7 @@ export async function MedicationSection({ userId }: MedicationSectionProps) {
     .from('medications')
     .select('*')
     .eq('user_id', userId)
-    .eq('taken_date', new Date().toISOString().slice(0, 10))
+    .eq('taken_date', getAppTodayKey())
     .order('created_at', { ascending: true })
 
   return (

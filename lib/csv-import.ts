@@ -1,5 +1,6 @@
 import { BloodPressureInput } from '@/types/blood-pressure.types'
 import { calculateCategory } from '@/lib/blood-pressure'
+import { appDateTimeToUtc } from '@/lib/timezone'
 
 /**
  * Batas maksimum baris data yang boleh diimpor sekaligus.
@@ -191,40 +192,43 @@ function parseRow(
 }
 
 function parseDate(input: string): string | null {
-  // ISO format (2024-01-15 or 2024-01-15T10:30:00)
-  if (/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?/.test(input)) {
-    const d = new Date(input)
-    if (!isNaN(d.getTime())) return d.toISOString()
+  // ISO format. Values without an explicit offset are interpreted in the
+  // application's Asia/Jakarta timezone, not the server timezone.
+  const iso = input.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?(Z|[+-]\d{2}:?\d{2})?$/)
+  if (iso) {
+    const [, y, m, d, hh, mm, ss, offset] = iso
+    if (offset) {
+      const date = new Date(input)
+      if (!isNaN(date.getTime())) return date.toISOString()
+    } else {
+      const date = appDateTimeToUtc(
+        `${y}-${m}-${d}`,
+        `${hh || '12'}:${mm || '00'}:${ss || '00'}.000`
+      )
+      if (date) return date.toISOString()
+    }
   }
 
-  // DD/MM/YYYY or DD-MM-YYYY
-  const dmy = input.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?/)
+  // DD/MM/YYYY, optionally with HH:mm or HH:mm:ss, interpreted in WIB.
+  const dmy = input.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/)
   if (dmy) {
-    const [, d, m, y, hh, mm] = dmy
-    const date = new Date(
-      Number(y),
-      Number(m) - 1,
-      Number(d),
-      hh ? Number(hh) : 12,
-      mm ? Number(mm) : 0
+    const [, d, m, y, hh, mm, ss] = dmy
+    const date = appDateTimeToUtc(
+      `${y}-${String(Number(m)).padStart(2, '0')}-${String(Number(d)).padStart(2, '0')}`,
+      `${hh || '12'}:${mm || '00'}:${ss || '00'}.000`
     )
-    if (!isNaN(date.getTime())) return date.toISOString()
-  }
-
-  // DD/MM/YYYY HH:mm:ss
-  const dmy2 = input.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/)
-  if (dmy2) {
-    const [, d, m, y, hh, mm, ss] = dmy2
-    const date = new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss))
-    if (!isNaN(date.getTime())) return date.toISOString()
+    if (date) return date.toISOString()
   }
 
   // YYYY/MM/DD
-  const ymd = input.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
+  const ymd = input.match(/^(\d{4})[\/](\d{1,2})[\/](\d{1,2})$/)
   if (ymd) {
     const [, y, m, d] = ymd
-    const date = new Date(Number(y), Number(m) - 1, Number(d))
-    if (!isNaN(date.getTime())) return date.toISOString()
+    const date = appDateTimeToUtc(
+      `${y}-${String(Number(m)).padStart(2, '0')}-${String(Number(d)).padStart(2, '0')}`,
+      '12:00:00.000'
+    )
+    if (date) return date.toISOString()
   }
 
   // Fallback ke Date constructor

@@ -1,21 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
 import { TagCorrelationCard, type TagCorrelation } from './tag-correlation-card'
 import { LIFESTYLE_TAGS, getTag } from '@/lib/lifestyle-tags'
+import { getAppRollingRangeUtc } from '@/lib/timezone'
 
 export async function TagCorrelationSection() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgo = getAppRollingRangeUtc(30).start
 
   const { data: records } = await supabase
     .from('blood_pressure_records')
     .select('systolic, diastolic, tags')
     .eq('user_id', user.id)
     .is('deleted_at', null)
-    .gte('measured_at', thirtyDaysAgo.toISOString())
+    .gte('measured_at', thirtyDaysAgo)
 
   if (!records || records.length < 5) return null
 

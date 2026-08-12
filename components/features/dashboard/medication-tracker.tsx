@@ -5,6 +5,7 @@ import { Pill, Plus, Trash2, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { getAppTodayKey } from '@/lib/timezone'
 import {
   addMedication,
   toggleMedication,
@@ -82,7 +83,7 @@ export function MedicationTracker({ medications: initialMeds }: MedicationTracke
       name: name.trim(),
       dosage: (formData.get('dosage') as string) || null,
       taken: false,
-      taken_date: new Date().toISOString().slice(0, 10),
+      taken_date: getAppTodayKey(),
       notes: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

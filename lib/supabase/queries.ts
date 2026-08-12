@@ -1,21 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { getAppDateRangeUtc } from '@/lib/timezone'
 
-/**
- * Opsi filter rentang tanggal lokal (mengikuti timezone server).
- */
+/** Opsi filter rentang tanggal kalender Asia/Jakarta. */
 export interface DateRangeOptions {
   startDate?: string
   endDate?: string
 }
 
-/**
- * Tipe minimal PostgREST filter builder yang dibutuhkan oleh helper ini.
- * Supabase typings lengkap (PostgrestFilterBuilder) sangat generik dan
- * membutuhkan chain dari `.from()` yang spesifik; tipe ringkas ini
- * mempertahankan type-safety pada method `gte` / `lte` / `eq` / `is`
- * yang dipakai, sambil tidak memaksakan generic pada setiap pemanggil.
- */
 type QueryFilterBuilder = {
   gte(column: string, value: string | number): QueryFilterBuilder
   lte(column: string, value: string | number): QueryFilterBuilder
@@ -24,36 +16,20 @@ type QueryFilterBuilder = {
 }
 
 /**
- * Terapkan filter `measured_at` pada Supabase PostgREST query builder.
- *
- * - `startDate` di-anchor ke awal hari (00:00:00.000) lokal
- * - `endDate` di-anchor ke akhir hari (23:59:59.999) lokal
- *
- * @returns builder yang sama (untuk chainable `.eq`, `.is`, dll)
+ * Apply measured_at boundaries for local calendar dates in Asia/Jakarta.
+ * The database still stores/query timestamps as UTC instants.
  */
 export function applyDateRange<Q extends QueryFilterBuilder>(
   query: Q,
   options: DateRangeOptions
 ): Q {
   let q: Q = query
+  const range = getAppDateRangeUtc(options.startDate, options.endDate)
 
-  if (options.startDate) {
-    const start = new Date(options.startDate)
-    start.setHours(0, 0, 0, 0)
-    q = q.gte('measured_at', start.toISOString()) as Q
-  }
-
-  if (options.endDate) {
-    const end = new Date(options.endDate)
-    end.setHours(23, 59, 59, 999)
-    q = q.lte('measured_at', end.toISOString()) as Q
-  }
+  if (range.start) q = q.gte('measured_at', range.start) as Q
+  if (range.end) q = q.lte('measured_at', range.end) as Q
 
   return q
 }
 
-/**
- * Tipe Supabase client yang sudah terikat ke Database schema.
- * Dipakai untuk typed queries di luar server actions.
- */
 export type TypedSupabaseClient = SupabaseClient<Database>

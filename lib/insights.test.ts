@@ -315,13 +315,13 @@ describe('generatePatternInsights', () => {
   it('detects morning-vs-evening difference when both have ≥ 3 readings', () => {
     const records = [
       // 3 morning readings (07:00)
-      makeRecord({ measured_at: '2026-08-02T07:00:00Z', systolic: 130, diastolic: 85 }),
-      makeRecord({ measured_at: '2026-08-03T07:00:00Z', systolic: 132, diastolic: 86 }),
-      makeRecord({ measured_at: '2026-08-04T07:00:00Z', systolic: 128, diastolic: 84 }),
-      // 3 evening readings (18:00)
-      makeRecord({ measured_at: '2026-08-02T18:00:00Z', systolic: 118, diastolic: 76 }),
-      makeRecord({ measured_at: '2026-08-03T18:00:00Z', systolic: 120, diastolic: 78 }),
-      makeRecord({ measured_at: '2026-08-04T18:00:00Z', systolic: 116, diastolic: 74 }),
+      makeRecord({ measured_at: '2026-08-02T00:00:00Z', systolic: 130, diastolic: 85 }),
+      makeRecord({ measured_at: '2026-08-03T00:00:00Z', systolic: 132, diastolic: 86 }),
+      makeRecord({ measured_at: '2026-08-04T00:00:00Z', systolic: 128, diastolic: 84 }),
+      // 3 evening readings (18:00 Asia/Jakarta = 11:00 UTC)
+      makeRecord({ measured_at: '2026-08-02T11:00:00Z', systolic: 118, diastolic: 76 }),
+      makeRecord({ measured_at: '2026-08-03T11:00:00Z', systolic: 120, diastolic: 78 }),
+      makeRecord({ measured_at: '2026-08-04T11:00:00Z', systolic: 116, diastolic: 74 }),
     ]
     const result = generatePatternInsights(records)
     const me = result.find((i) => i.id === 'morning-evening')
@@ -332,11 +332,11 @@ describe('generatePatternInsights', () => {
 
   it('returns few-days insight when only 3 or fewer unique days tracked', () => {
     const records = [
-      makeRecord({ measured_at: '2026-08-04T07:00:00Z' }),
-      makeRecord({ measured_at: '2026-08-04T18:00:00Z' }),
-      makeRecord({ measured_at: '2026-08-04T20:00:00Z' }),
-      makeRecord({ measured_at: '2026-08-03T07:00:00Z' }),
-      makeRecord({ measured_at: '2026-08-02T07:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-04T00:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-04T11:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-04T13:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-03T00:00:00Z' }),
+      makeRecord({ measured_at: '2026-08-02T00:00:00Z' }),
     ]
     const result = generatePatternInsights(records)
     const fd = result.find((i) => i.id === 'few-days')

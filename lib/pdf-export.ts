@@ -38,8 +38,7 @@ export function exportRecordsToPdf(
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.text('Riwayat Tekanan Darah', 14, 20)
-  const now = new Date()
-  const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
+  const dateStr = formatExportDate(new Date().toISOString())
   doc.text(`Digenerate: ${dateStr}`, pageWidth - 14, 20, {
     align: 'right',
   })

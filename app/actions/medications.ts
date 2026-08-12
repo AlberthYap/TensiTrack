@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { checkDemoRateLimit } from '@/lib/demo'
+import { getAppTodayKey } from '@/lib/timezone'
 
 export interface MedicationEntry {
   id: string
@@ -25,7 +26,7 @@ const medicationSchema = z.object({
 
 /** Today's date stamp computed at call time to avoid stale module-level values. */
 function today(): string {
-  return new Date().toISOString().slice(0, 10)
+  return getAppTodayKey()
 }
 
 export async function addMedication(formData: FormData) {

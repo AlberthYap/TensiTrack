@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { getAppRollingRangeUtc } from '@/lib/timezone'
 
 /**
  * Fetch the 7-day blood pressure records for a user.
@@ -10,15 +11,14 @@ import { createClient } from '@/lib/supabase/server'
  */
 export const getWeeklyRecords = cache(async (userId: string) => {
   const supabase = await createClient()
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const sevenDayRange = getAppRollingRangeUtc(7)
 
   const { data } = await supabase
     .from('blood_pressure_records')
     .select('*')
     .eq('user_id', userId)
     .is('deleted_at', null)
-    .gte('measured_at', sevenDaysAgo.toISOString())
+    .gte('measured_at', sevenDayRange.start)
     .order('measured_at', { ascending: true })
 
   return (data ?? []) as Array<{
