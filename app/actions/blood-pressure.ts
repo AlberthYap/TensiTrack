@@ -334,6 +334,7 @@ export interface PaginatedRecords {
     pulse: number | null
     category: 'low' | 'normal' | 'elevated' | 'hypertension_stage_1' | 'hypertension_stage_2'
     notes: string | null
+    tags: string[]
     measured_at: string
     created_at: string
     updated_at: string
@@ -527,7 +528,7 @@ export async function batchImportBloodPressureRecords(
       category: r.category,
       notes: r.notes,
       measured_at: r.measured_at,
-      tags: (r as any).tags ?? [],
+      tags: [],
     }))
 
     const { data: rpcResult, error: rpcError } = await adminClient.rpc(

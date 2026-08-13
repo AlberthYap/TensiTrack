@@ -53,6 +53,7 @@ export interface Database {
           pulse: number | null
           category: string
           notes: string | null
+          tags: string[]
           measured_at: string
           created_at: string
           updated_at: string
@@ -66,6 +67,7 @@ export interface Database {
           pulse?: number | null
           category: string
           notes?: string | null
+          tags?: string[]
           measured_at: string
           created_at?: string
           updated_at?: string
@@ -79,6 +81,7 @@ export interface Database {
           pulse?: number | null
           category?: string
           notes?: string | null
+          tags?: string[]
           measured_at?: string
           created_at?: string
           updated_at?: string

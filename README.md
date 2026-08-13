@@ -59,6 +59,8 @@ npm install
      - `007_auth_rate_limits.sql`
      - `008_add_demo_user.sql`
      - `009_medications_and_targets.sql`
+     - `010_add_lifestyle_tags.sql`
+     - `011_security_hardening.sql`
 
    **Note**: After migration `008`, run the seed script to create the demo user:
    ```bash

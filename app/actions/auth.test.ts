@@ -79,7 +79,7 @@ describe('login', () => {
     expect(result?.error).toBeDefined()
   })
 
-  it('translates "Invalid login credentials" to Indonesian', async () => {
+  it('returns a generic error for invalid login credentials', async () => {
     mockSignInWithPassword.mockResolvedValue({
       error: { message: 'Invalid login credentials' },
     })
@@ -88,10 +88,10 @@ describe('login', () => {
     fd.set('password', 'wrong')
 
     const result = await login(fd)
-    expect(result?.error).toMatch(/Email atau password salah/)
+    expect(result?.error).toBe('Gagal login. Silakan coba lagi.')
   })
 
-  it('translates "Email not confirmed" to Indonesian', async () => {
+  it('returns a generic error when email is not confirmed', async () => {
     mockSignInWithPassword.mockResolvedValue({
       error: { message: 'Email not confirmed' },
     })
@@ -100,10 +100,10 @@ describe('login', () => {
     fd.set('password', 'secret')
 
     const result = await login(fd)
-    expect(result?.error).toMatch(/Email belum diverifikasi/)
+    expect(result?.error).toBe('Gagal login. Silakan coba lagi.')
   })
 
-  it('returns original error message for other errors', async () => {
+  it('returns a generic error message for unexpected auth errors', async () => {
     mockSignInWithPassword.mockResolvedValue({
       error: { message: 'Network error' },
     })
@@ -112,7 +112,7 @@ describe('login', () => {
     fd.set('password', 'secret')
 
     const result = await login(fd)
-    expect(result?.error).toBe('Network error')
+    expect(result?.error).toBe('Gagal login. Silakan coba lagi.')
   })
 
   // SECURITY: rate-limit returns generic lockout, not user enumeration or

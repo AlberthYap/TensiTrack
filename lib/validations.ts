@@ -47,7 +47,7 @@ const COMMON_PASSWORDS = new Set([
 // Shared schema for new passwords in register/reset/change flows.
 // Min 8 chars (NIST SP 800-63B). Max 128 to prevent bcrypt DoS.
 // LoginSchema does NOT use this — legacy users may have shorter passwords.
-const passwordField = z
+export const passwordField = z
   .string()
   .min(8, 'Password minimal 8 karakter')
   .max(128, 'Password maksimal 128 karakter')

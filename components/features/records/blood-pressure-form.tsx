@@ -65,6 +65,7 @@ interface FormState {
   pulse: string
   measured_at: string
   notes: string
+  tags: string[]
 }
 
 export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPressureFormProps) {
@@ -142,25 +143,30 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
     pulse: record?.pulse?.toString() || '',
     measured_at: getLocalDatetimeString(record?.measured_at),
     notes: record?.notes || '',
+    tags: record?.tags ?? [],
   })
 
   const initialValues = useRef<FormState>(buildInitialValues())
 
   // Restore saved form data from localStorage (new record only).
-  // This preserves user input when the browser tab was closed while offline.
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-
+  // This preserves user input, including tags, when the browser tab was
+  // closed while offline.
   const [formValues, setFormValues] = useState<FormState>(() => {
     if (isEdit) return buildInitialValues()
     try {
       if (typeof localStorage !== 'undefined') {
         const saved = localStorage.getItem(OFFLINE_FORM_KEY)
         if (saved) {
-          const parsed = JSON.parse(saved) as FormState
+          const parsed = JSON.parse(saved) as Partial<FormState>
           // Basic sanity check — if offline-form saved data looks like
-          // something the user intended, restore it.
+          // something the user intended, restore it. Older saved entries may
+          // not have tags, so normalize that field for backward compatibility.
           if (parsed.systolic || parsed.diastolic || parsed.measured_at) {
-            return parsed
+            return {
+              ...buildInitialValues(),
+              ...parsed,
+              tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+            }
           }
         }
       }
@@ -176,7 +182,9 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
       formValues.diastolic !== initialValues.current.diastolic ||
       formValues.pulse !== initialValues.current.pulse ||
       formValues.measured_at !== initialValues.current.measured_at ||
-      formValues.notes !== initialValues.current.notes
+      formValues.notes !== initialValues.current.notes ||
+      formValues.tags.length !== initialValues.current.tags.length ||
+      formValues.tags.some((tag, index) => tag !== initialValues.current.tags[index])
     )
   }
 
@@ -238,6 +246,7 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
       fd.append('diastolic', formValues.diastolic)
       if (formValues.pulse) fd.append('pulse', formValues.pulse)
       fd.append('notes', formValues.notes)
+      fd.append('tags', formValues.tags.join(','))
 
       const measuredAtStr = formValues.measured_at
       if (measuredAtStr) {
@@ -307,7 +316,7 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
     router.push(redirectPath)
   }
 
-  const handleFormChange = (field: keyof FormState, value: string) => {
+  const handleFormChange = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setFormValues((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -530,11 +539,14 @@ export function BloodPressureForm({ record, redirectPath = '/records' }: BloodPr
 
         <div className="space-y-2">
           <Label>Faktor Gaya Hidup</Label>
-          <TagSelector selected={selectedTags} onChange={setSelectedTags} />
+          <TagSelector
+            selected={formValues.tags}
+            onChange={(tags) => handleFormChange('tags', tags)}
+          />
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Tandai jika ada faktor yang mempengaruhi tensi (opsional)
           </p>
-          <input type="hidden" name="tags" value={selectedTags.join(',')} />
+          <input type="hidden" name="tags" value={formValues.tags.join(',')} />
         </div>
 
         <div className="flex gap-3 pt-2">

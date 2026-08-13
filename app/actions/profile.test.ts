@@ -4,9 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockGetUser = vi.fn()
 const mockSignOut = vi.fn()
 const mockSignInWithPassword = vi.fn()
-const mockUpdate = vi.fn()
+const mockUpdateUser = vi.fn()
 const mockEq = vi.fn()
 const mockFrom = vi.fn()
+
+const rateLimitMocks = vi.hoisted(() => ({
+  checkAuthRateLimit: vi.fn().mockResolvedValue({ allowed: true, error: null }),
+}))
+
+vi.mock('@/lib/rate-limit', () => rateLimitMocks)
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => ({
@@ -14,7 +20,7 @@ vi.mock('@/lib/supabase/server', () => ({
       getUser: mockGetUser,
       signOut: mockSignOut,
       signInWithPassword: mockSignInWithPassword,
-      updateUser: vi.fn(),
+      updateUser: mockUpdateUser,
     },
     from: mockFrom,
   }),
@@ -130,7 +136,7 @@ describe('deleteAccount', () => {
     })
 
     const result = await deleteAccount('HAPUS AKUN', VALID_PASSWORD)
-    expect(result?.error).toMatch(/Service role key missing/)
+    expect(result?.error).toMatch(/Akun tidak dapat dihapus dari sisi server/)
     // CRITICAL: user must NOT be signed out
     expect(mockSignOut).not.toHaveBeenCalled()
   })
@@ -166,6 +172,63 @@ describe('deleteAccount', () => {
 describe('changePassword', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    rateLimitMocks.checkAuthRateLimit.mockResolvedValue({ allowed: true, error: null })
+    mockSignInWithPassword.mockResolvedValue({ error: null })
+    mockUpdateUser.mockResolvedValue({ error: null })
+  })
+
+  it('uses the shared strong-password policy and rate limits changes', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'user@example.com' } },
+    })
+
+    const fd = new FormData()
+    fd.set('currentPassword', 'old-password')
+    fd.set('newPassword', VALID_PASSWORD)
+    fd.set('confirmPassword', VALID_PASSWORD)
+
+    const result = await changePassword(fd)
+
+    expect(result).toEqual({ success: 'Password berhasil diubah' })
+    expect(rateLimitMocks.checkAuthRateLimit).toHaveBeenCalledWith(
+      'password-change:user:user-1',
+      5,
+      15 * 60
+    )
+    expect(mockUpdateUser).toHaveBeenCalledWith({ password: VALID_PASSWORD })
+  })
+
+  it('rejects a common new password before attempting re-authentication', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'user@example.com' } },
+    })
+
+    const fd = new FormData()
+    fd.set('currentPassword', 'old-password')
+    fd.set('newPassword', '12345678')
+    fd.set('confirmPassword', '12345678')
+
+    const result = await changePassword(fd)
+
+    expect(result?.error).toMatch(/terlalu umum|unik/)
+    expect(mockSignInWithPassword).not.toHaveBeenCalled()
+  })
+
+  it('stops password changes after the per-user rate limit is exceeded', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'user@example.com' } },
+    })
+    rateLimitMocks.checkAuthRateLimit.mockResolvedValueOnce({ allowed: false, error: null })
+
+    const fd = new FormData()
+    fd.set('currentPassword', 'old-password')
+    fd.set('newPassword', VALID_PASSWORD)
+    fd.set('confirmPassword', VALID_PASSWORD)
+
+    const result = await changePassword(fd)
+
+    expect(result?.error).toMatch(/Terlalu banyak/)
+    expect(mockSignInWithPassword).not.toHaveBeenCalled()
   })
 
   // DEMO: shared demo account password must remain fixed.

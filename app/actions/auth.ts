@@ -24,6 +24,8 @@ const FORGOT_PASSWORD_WINDOW_SECONDS = 60 * 60
 
 // Generic lockout banner — prevent user enumeration.
 const LOCKOUT_MESSAGE = 'Terlalu banyak permintaan. Coba lagi nanti.'
+const GENERIC_AUTH_ERROR = 'Gagal login. Silakan coba lagi.'
+const GENERIC_REGISTRATION_ERROR = 'Registrasi gagal. Silakan periksa data dan coba lagi.'
 
 export async function register(
   formData: FormData,
@@ -86,8 +88,9 @@ export async function register(
   })
 
   if (error) {
+    console.error('Registration error:', error)
     return {
-      error: error.message,
+      error: GENERIC_REGISTRATION_ERROR,
     }
   }
 
@@ -132,23 +135,10 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
+    // Keep all authentication failures indistinguishable to prevent account
+    // enumeration through different Supabase error messages.
     console.error('Login error:', error)
-
-    if (error.message.includes('Email not confirmed')) {
-      return {
-        error: 'Email belum diverifikasi. Cek inbox email Anda atau hubungi admin.',
-      }
-    }
-    
-    if (error.message.includes('Invalid login credentials')) {
-      return {
-        error: 'Email atau password salah. Pastikan email sudah terdaftar dan password benar.',
-      }
-    }
-
-    return {
-      error: error.message || 'Gagal login. Silakan coba lagi.',
-    }
+    return { error: GENERIC_AUTH_ERROR }
   }
 
   // Clean up demo data older than 24 hours, then seed sample data
@@ -301,7 +291,7 @@ export async function resetPassword(formData: FormData) {
 
   if (error) {
     console.error('Reset password error:', error)
-    return { error: error.message }
+    return { error: 'Password tidak dapat diubah. Silakan minta link reset baru.' }
   }
 
   revalidatePath('/', 'layout')

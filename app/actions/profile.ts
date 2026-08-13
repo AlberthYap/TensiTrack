@@ -6,6 +6,8 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isDemoEmail } from '@/lib/demo'
+import { passwordField } from '@/lib/validations'
+import { checkAuthRateLimit } from '@/lib/rate-limit'
 
 const updateProfileSchema = z.object({
   full_name: z.string().min(2, 'Nama minimal 2 karakter').max(100),
@@ -29,11 +31,14 @@ const updateProfileSchema = z.object({
     ),
 })
 
+const PASSWORD_CHANGE_MAX = 5
+const PASSWORD_CHANGE_WINDOW_SECONDS = 15 * 60
+
 const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Password saat ini harus diisi'),
-    newPassword: z.string().min(6, 'Password baru minimal 6 karakter'),
-    confirmPassword: z.string().min(6, 'Konfirmasi password minimal 6 karakter'),
+    newPassword: passwordField,
+    confirmPassword: passwordField,
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: 'Password baru dan konfirmasi tidak cocok',
@@ -83,7 +88,8 @@ export async function updateProfile(formData: FormData) {
     .eq('id', user.id)
 
   if (profileError) {
-    return { error: profileError.message }
+    console.error('updateProfile: database update failed:', profileError)
+    return { error: 'Profil tidak dapat diperbarui. Silakan coba lagi nanti.' }
   }
 
   const { error: metaError } = await supabase.auth.updateUser({
@@ -127,6 +133,15 @@ export async function changePassword(formData: FormData) {
 
   const { currentPassword, newPassword } = validatedFields.data
 
+  const { allowed } = await checkAuthRateLimit(
+    `password-change:user:${user.id}`,
+    PASSWORD_CHANGE_MAX,
+    PASSWORD_CHANGE_WINDOW_SECONDS
+  )
+  if (!allowed) {
+    return { error: 'Terlalu banyak percobaan. Coba lagi nanti.' }
+  }
+
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email: user.email,
     password: currentPassword,
@@ -141,7 +156,8 @@ export async function changePassword(formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message }
+    console.error('changePassword: update failed:', error)
+    return { error: 'Password tidak dapat diubah. Silakan coba lagi nanti.' }
   }
 
   return { success: 'Password berhasil diubah' }
@@ -204,7 +220,10 @@ export async function deleteAccount(confirmation: string, password: string) {
     )
 
     if (deleteError) {
-      return { error: deleteError.message }
+      console.error('deleteAccount: admin delete failed:', deleteError)
+      return {
+        error: 'Akun tidak dapat dihapus dari sisi server. Hubungi admin untuk menghapus data.',
+      }
     }
   } catch (err) {
     console.error('Admin client delete failed:', err)
